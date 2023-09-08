@@ -1,0 +1,57 @@
+\noindent\begin{minipage}{.45\textwidth}
+    \fontsmall
+    \begin{lstlisting}[numbers=left, tabsize=2, language=C, caption={Echo client pseudo code},frame=tb, label={l:echo}]
+        while (true) {
+            event = Wait();
+            if (event & receive) {
+                process_rx();
+                transmit();
+            }
+        }
+    \end{lstlisting} 
+    \end{minipage}\hfill
+    \begin{minipage}{.45\textwidth}
+    \fontsmall
+    \begin{lstlisting}[numbers=left, tabsize=2, language=C, caption={Mostly transmit client pseudo code},frame=tb, label={l:tx}]
+        while (true) {
+            event = Wait();
+            if (event & receive) {
+                process_rx();
+                for (i = 0; i < 100; i++) {
+                    transmit();
+                }
+            }
+        }
+    \end{lstlisting}
+\end{minipage}
+\noindent\begin{minipage}{.45\textwidth}
+    \fontsmall
+    \begin{lstlisting}[numbers=left, tabsize=2, language=C, caption={Mostly receive client pseudo code},frame=tb, label={l:rx}]
+        while (true) {
+            event = Wait();
+            count = 0;
+            if (event & receive) {
+                process_rx();
+                count++;
+            }
+            if (count % 100 == 0) {
+                transmit();
+            }
+        }
+    \end{lstlisting} 
+    \end{minipage}\hfill
+    \begin{minipage}{.45\textwidth}
+    \fontsmall
+    \begin{lstlisting}[numbers=left, tabsize=2, language=C, caption={Client initiated transmit pseudo code},frame=tb, label={l:cl_tx}]
+        set_timeout();
+        while (true) {
+            if (event & receive) {
+                process_rx();
+            }
+            if (event & timeout) {
+                transmit();
+                set_timeout();
+            }
+        }
+    \end{lstlisting}
+\end{minipage}

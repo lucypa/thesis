@@ -1,0 +1,106 @@
+\documentclass[singlespacing, oneside]{unswthesis}
+
+% Enables fixmes
+\newif \ifDraft         \Draftfalse
+
+
+% Status of the paper:
+%\Drafttrue
+\Draftfalse
+%\Finaltrue
+
+%\ifFinal\Draftfalse\fi
+
+\ifDraft
+  \usepackage{draftwatermark}
+  \SetWatermarkLightness{0.85}
+  \newcommand{\Comment}[1]{\textbf{\textsl{#1}}}
+  \newenvironment{LongComment}[1] % multi-paragraph comment, argument is owner
+    {\begingroup\par\noindent\slshape \textbf{\colorbox{yellow}{Begin Comment[#1]}}\par}
+    {\par\noindent\textbf{\colorbox{yellow}{End Comment}}\endgroup\par}
+  \newcommand{\FIXME}[1]{\textbf{\textsl{\colorbox{yellow}{FIXME:} #1}}}
+  \newcommand{\TODO}[1]{\textbf{\textsl{\colorbox{yellow}{TODO:} #1}}}
+\else
+  \newcommand{\Comment}[1]{\relax}
+  \newenvironment{LongComment}[1]{\expandafter\comment}{\expandafter\endcomment}
+  \newcommand{\FIXME}[1]{\relax}
+  \newcommand{\TODO}[1]{\relax}
+\fi
+
+\usepackage{graphicx}
+\usepackage{listings}
+\usepackage{hyperref}
+\usepackage{cite}
+\usepackage{pdflscape}
+\usepackage{longtable}
+
+\newif \ifhyperlinks    \hyperlinkstrue
+%%% Class options:
+
+%  undergrad (default)
+%  hdr
+
+%  11pt (default)
+%  12pt
+
+%  final (default)
+%  draft
+
+%  oneside (default for hdr)
+%  twoside (default for undergrad)
+
+
+%% Thesis details
+\thesistitle{High-performance I/O on seL4}
+\thesisschool{School of Computer Science and Engineering}
+\thesisauthor{Lucy Parker}
+\thesisZid{z5059323}
+\thesisdegree{Bachelor of Computer Science (Honours)}
+\thesisdate{April 2022}
+\thesissupervisor{Prof.\ Gernot Heiser \& Dr Peter Chubb}% for undergrad theses only
+\thesisproject{Thesis A}
+
+\graphicspath{{imgs/}}
+
+%% My own LaTeX macros, definitions, etc
+\include{definitions}
+
+
+\begin{document}
+
+\renewcommand{\sectionautorefname}{Section}
+\renewcommand{\chapterautorefname}{Chapter}
+\renewcommand{\subsectionautorefname}{Section}
+\renewcommand{\subsubsectionautorefname}{Section}
+\renewcommand{\appendixautorefname}{Appendix}
+
+%% pages in the ``frontmatter'' section have roman numeral page number
+\frontmatter  
+\maketitle
+
+%\include{acknowledgements}
+\include{abbreviations}
+
+\tableofcontents
+\listoffigures  % if required
+% \listoftables  % if required
+
+%% pages in the ``mainmatter'' section have arabic page numbers and chapters are numbered
+\mainmatter
+
+\include{introduction}
+\include{background}
+\include{relatedwork}
+\include{sDDF}
+\include{evaluation}
+\include{approach}
+\include{plan}
+\include{appendix}
+
+%% chapters in the ``backmatter'' section do not have chapter numbering
+%% text in the ``backmatter'' is single spaced
+\backmatter
+\bibliographystyle{apalike}
+\bibliography{pubs}
+
+\end{document}
