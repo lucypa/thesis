@@ -59,7 +59,7 @@ to pass them on to, we could either develop a separate component to handle all b
 alternatively, add the functionality to the MUX RX to duplicate these packets and forward them to all clients.
 A separate component can be kept simple, as per the design goals with the aim of enabling eventual verification. It just
 requires the necessary functionality extracted from an IP stack to respond to ARP. However, as ARP is based on both 
-Mac address and protocol address, the ARP component would need to have a mapping of MAC address and
+MAC address and protocol address, the ARP component would need to have a mapping of MAC address and
 IPv4 address for each client. As each client could potentially alter
 their IPv4 address, or change protocols altogether, this mapping would need to be done dynamically.\\ 
 Alternatively, if we were to duplicate broadcast packets and forward them to all applications, the MUX RX would need to ensure
