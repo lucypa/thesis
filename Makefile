@@ -19,7 +19,7 @@ display: default
 
 
 ### Compilation Flags
-PDFLATEX_FLAGS  = -halt-on-error -output-directory obj/
+PDFLATEX_FLAGS  = -halt-on-error -shell-escape -output-directory obj/
 
 TEXINPUTS = .:obj/
 TEXMFOUTPUT = obj/

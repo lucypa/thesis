@@ -104,6 +104,61 @@ two heads and two tails to keep track of where a producer can produce to without
 likewise for consumers). Pseudo code for interacting with MPMC queues is shown \autoref{l:prod} and \autoref{l:cons} 
 \cite{Wang_BFOOLCHC_22}.
 
+
+\begin{figure} [H]
+	\begin{multicols}{2}
+		\begin{subfigure}{0.45\textwidth}
+		\begin{minted}[fontsize={\fontsize{8.5}{9.5}\selectfont}]{c}
+enqueue(data) {
+again:
+    ph = load(prod.head)
+    pn = ph + 1
+    if (pn > load(cons.tail) + SIZE)
+	    return FULL
+    if (!cas(prod.head, ph, pn))
+        /* Another producer is 
+        using this slot */
+        goto again
+    entry[pn] = data
+    /* Wait until earlier slots have
+    successfully committed */
+    while(load(prod.tail) != ph)
+    store(prod.tail, pn)
+    return OK
+}
+    \end{minted}
+    \caption{Producer pseudo code}
+    \label{l:prod}
+    \end{subfigure}\hfill
+    \begin{subfigure}{0.45\textwidth}
+    \begin{minted}[fontsize={\fontsize{8.5}{9.5}\selectfont}]{c}
+dequeue() {
+again:
+    ch = load(cons.head)
+    cn = ch + 1
+    if (cn > load(prod.tail))
+        return EMPTY
+    if (!cas(cons.head, ch, cn))
+        /* Another consumer is 
+          consuming this slot */
+    goto again
+    data = entry[cn]
+    /* Wait until earlier slots have 
+       successfully committed */
+    while(load(cons.tail) != ch)
+    store(cons.tail, cn)
+    return data
+}
+    \end{minted}
+    \caption{Consumer pseudo code}
+    \label{l:cons}
+    \end{subfigure}
+\end{multicols}
+\caption{Psuedo code for MPMC Queues}
+\label{l:mpmc}
+\end{figure}
+
+\newpage
 \noindent\begin{minipage}{.45\textwidth}
 \fontsmall
 \begin{lstlisting}[numbers=left, tabsize=2, language=C, caption={Producer pseudo code},frame=tb, label={l:prod}, captionpos=b]

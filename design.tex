@@ -2,16 +2,196 @@
 
 \section{Multiplexer Policy}
 
+We design several different multiplexers, each implementing a different policy
+that only seeks to cater to specific use cases. The multiplexers are trusted components,
+and thus are kept intentionally simple to leave them accessible to formal verification.
+The main tasks of the multiplexers, regardless of policy implemented, are as follows:
+
+\begin{itemize}
+    \item Given a virtual address from the client/copier, translate it to a phyiscal address before
+            handing it over to the driver.
+    \item Given a physical address from the driver, translate it to a virtual address before
+            handing it over to the client/copier.
+    \item Sanitise any buffer addresses from the client before forwarding them.
+    \item Sanitise any addresses from the driver. 
+    \item Transmit buffers belong to the client, and all free buffers on the transmit path
+            must be returned to the appropriate client.
+    \item Receive buffers belong to the driver, and all free buffers on the receive path
+            must be returned to the driver.
+    \item Implement policy as detailed below.
+    \item The transmit multiplexer must sanitise the ethernet header of outgoing packets
+          to ensure the destination MAC address is well formed and will not cause issues
+          on the network. 
+\end{itemize}
+
+
 \subsection{Receive Policy}
 
-\subsection{Round Robin Policy}
+All incoming packets are processed in FIFO order. The multiplexer contains a 
+mapping of virtualised client MAC addresses and client queues. After dequeuing an incoming packet,
+the multiplexer must first invalidate the cache (to ensure subsequent reads are fetched again from memory)
+and read the packet header. The packet header contains the destination MAC address and if the packet is
+addressed to a client on the system, the buffer address is forwarded to the appropriate client. 
+If a clients receive used queue is full, the packet is dropped and the buffer address is returned to
+the driver. This can be prevented for higher priority clients by appropriate choice of clients receive
+used queue sizes. Appropriate sizes can be selected based on experients discussed in \autoref{ch:evaluation}.
 
-\subsection{Priority Based Policy}
+The multiplexer must also return free buffers to the driver to be reused again. If a clients receive free
+queue is full, it could stall the client while it waits to enqueue free buffers. Should this be the case,
+the order in which the multiplexer processes the client receive free queues contains policy as it may
+unblock clients. We propose instead to ensure the clients receive free queue is the same size as the number
+of receive buffers circulating and thus prevent the client becoming blocked on waiting for this queue to be
+processed. This design removes the need for policy on processing free buffers. \\ 
 
-\subsection{Bandwidth Limited Policy}
+\subsection{Transmit Policy}
+
+All incoming requests from clients are processed given a particular policy. The designs of each policy
+are outlined below.\\
+The transmit multiplexer returns free buffers from the driver to the client in FIFO order.
+We propose client transmit free queues are at least the size of the number of buffers
+belonging to that client in order to prevent the multiplexer from becoming blocked 
+should a clients free queue become full. \\ 
+Similarly, the drivers transmit used queue should be at least the size of the sum of 
+all client transmit buffers. This ensures the multiplexer will not become blocked on this queue
+and thus disrupt the policy implemented to process client requests. \\ 
+
+\subsubsection{Round Robin Policy}
+We implement a round robin policy by processing a single clients transmit request at a time.
+This is done in a loop to ensure we process any batched requests as outlined in \autoref{l:roundrobin}.
+
+\begin{lstlisting}[tabsize=2, language=C, caption={Transmit Round Robin Policy},frame=tb, 
+                    label={l:roundrobin}, captionpos=b]
+void process_transmit_ready():
+    enqueued = 0
+    old_enqueued = 0
+
+    while(!ring_full(driver.used_ring)):
+        old_enqueued = enqueued
+        for each client:
+            // Process a single used buffer at a time. 
+            if (!ring_empty(client.used_ring) &&
+                !ring_full(driver.used_ring)):
+                buf = dequeue(client.used_ring)
+                phys = get_phys_addr(buf)
+                enqueue(driver.used_ring, phys)
+
+                enqueued += 1
+            
+        /* we haven't processed any packets since 
+            last loop, exit */
+        if (old_enqueued == enqueued) break;
+\end{lstlisting}
+
+\subsubsection{Priority-based Policy}
+
+We implement a priority based policy in \autoref{l:prioritybased}. We assume the list of
+clients is ordered from highest priority to lowest. Thus it is possible to change a clients
+priority at run time by manipulating this list.\\
+
+\begin{minipage}{\textwidth}
+    \centering
+    \begin{lstlisting}[tabsize=2, language=C, caption={Transmit Priority-based Policy},frame=tb, 
+                        label={l:prioritybased}, captionpos=b]
+void process_transmit_ready():
+    enqueued = 0
+    old_enqueued = 0
+    while(!ring_full(driver->used_ring)):
+        old_enqueued = enqueued
+        for client in clients:
+            while(!ring_empty(client->used_ring) &&
+                    !ring_full(driver->used_ring)):
+                buf = dequeue(client.used_ring)
+                phys = get_phys_addr(buf)
+                enqueue(driver.used_ring, phys)
+
+                enqueued += 1
+                /* if a higher priority client has since 
+                    made a request, go again */
+                if (!ring_empty(clients[:client])): break
+
+        if old_enqueued == new_enqueued: break
+\end{lstlisting}
+\end{minipage}
+
+\subsubsection{Bandwidth Limited Policy}
+
+We implement a bandwidth limited policy in \autoref{l:bandwidth}. This multiplexer must
+also communicate with a timer driver to get the time and set timeouts. The timer driver
+API is shown in \autoref{l:timer}.
+
+\begin{minipage}{\textwidth}
+    \centering
+    \begin{lstlisting}[tabsize=2, language=C, caption={Transmit Bandwidth Limited Policy},frame=tb, 
+                        label={l:bandwidth}, captionpos=b]
+void process_transmit_ready():
+    curr_time = get_time()
+    for each client:
+        if (curr_time - client.last_time >= TIME_WINDOW):
+            client.last_time = curr_time
+            client.bandwidth = 0
+        
+        while !ring_empty(client.used_ring) && 
+                !ring_full(driver.used_ring) && 
+                client.bandwidth < client.max:
+            buf = dequeue(client.used_ring)
+            phys = get_phys_addr(buf)
+            enqueue(driver.used_ring, phys)
+            /* recalculate the clients bandwidth used in 
+                the current time period */ 
+            client.bandwidth = calculate_bandwidth(buf_size)
+
+        if !ring_empty(client.used_ring) && !client.timeout:
+            request_timeout(TIME_WINDOW - curr_time - client.last_time)
+            client.timeout = true
+    \end{lstlisting}
+\end{minipage}
+
+\begin{minipage}{\textwidth}
+    \centering
+    \begin{lstlisting}[tabsize=2, language=C, caption={Timer Driver API},frame=tb, 
+                        label={l:timer}, captionpos=b]
+uint64_t get_time() {
+    return sel4cp_ppcall(TIMER, sel4cp_msginfo_new(GET_TIME, 0));
+}
+        
+void request_timeout(uint64_t micros) {
+    sel4cp_mr_set(0, micros);
+    sel4cp_ppcall(TIMER, sel4cp_msginfo_new(SET_TIMEOUT, 1));
+}
+    \end{lstlisting}
+\end{minipage}
+
+The timer driver is a high priority, passive server. It receives interrupts from the deveice,
+and forwards these by notifying the appropriate client or multiplexer. Thus the bandwidth limited
+multiplexer also reacts to such notifications by clearing the appropriate clients timeout and
+recalling process\_transmit\_ready.
+
+This bandwidth limited policy can also be combined with the round robin or priority based policy
+to order each clients requests. Such a case would be useful in reducing/limited the 
+transmit latencies of latency sensitive applications.\\ 
+
+% does it make sense to set a total limit greater than whats actually available? 
 
 \subsection{Enforcing Policy Through System Design}
-
+Depending on the greater system design, we expect some transmit policies to not work.
+For example, given a single core configuration, the higher priority multiplexer will
+always be invoked as soon as a client has made a request to transmit. This means that
+we can assume any other clients do not yet wish to transmit, or have not yet had the
+opportunity to run to make a request. Therefore, the multiplexer does not need to 
+consider all the client queues when invoked and can just service requests made
+by the client which signalled. To enforce policy on multiple clients in such a scenario,
+we rely on appropriate choices of client queue sizes and the scheduling parameters
+of each client. For example, to enforce a round robin policy, we run both clients
+at equal priorities, and limit their transmit used queues to just one. This ensures
+that each client will be stalled until their single request has been processed, and
+another client will have the opportunity to run in the interim. The multiplexer will
+then only process a single request per client at a time.\\
+Similarly, should we require a priority based policy, we can set appropriate priorities
+to the clients scheduling contexts and rely on the scheduling of the system to reinforce
+this policy.\\
+Finally, we can limit the clients queue sizes on both the transmit and/or receive paths
+to limit the amount of either transmit and/or receive throughput available to each client.
+Appropriate sizes can be selected based on experients discussed in \autoref{ch:evaluation}.\\ 
 
 \section{Broadcast Protocols}
 Some protocols broadcast traffic to all systems by addressing the
@@ -62,43 +242,50 @@ and requires minimal data exchange, we define this interface using a protected p
 call (PPC) from the client to the ARP component. 
 
 \begin{minipage}{\textwidth}
+    \fontsmall
     \centering
     \begin{lstlisting}[tabsize=2, language=C, caption={Client Interface to ARP Component},frame=tb, 
-                        label={l:queues2}, captionpos=b]
-        void register_ip4(new_ip4_addr, mac_addr[6])
-        {
-            /* split the MAC address across two registers so it fits */
-            sel4cp_mr_set(0, mac_addr[0:4]);
-            sel4cp_mr_set(1, mac_addr[4:6]);
-            sel4cp_mr_set(2, new_ip4_addr);
-            sel4cp_ppcall(ARP, sel4cp_msginfo_new(REGISTER_IP, 3));
-        }
+                        label={l:arpintf}, captionpos=b]
+void register_ip4(new_ip4_addr, mac_addr[6])
+{
+    /* split the MAC address across two registers so it fits */
+    sel4cp_mr_set(0, mac_addr[0:4]);
+    sel4cp_mr_set(1, mac_addr[4:6]);
+    sel4cp_mr_set(2, new_ip4_addr);
+    sel4cp_ppcall(ARP, sel4cp_msginfo_new(REGISTER_IP, 3));
+}
 
-        void change_ip4(old_ip4_addr, new_ip4_addr, mac_addr[6])
-        {
-            sel4cp_mr_set(0, mac_addr[0:4]);
-            sel4cp_mr_set(1, mac_addr[4:6]);
-            sel4cp_mr_set(2, old_ip4_addr);
-            sel4cp_mr_set(3, new_ip4_addr);
-            sel4cp_ppcall(ARP, sel4cp_msginfo_new(CHANGE_IP, 4));
-        }
+void change_ip4(old_ip4_addr, new_ip4_addr, mac_addr[6])
+{
+    sel4cp_mr_set(0, mac_addr[0:4]);
+    sel4cp_mr_set(1, mac_addr[4:6]);
+    sel4cp_mr_set(2, old_ip4_addr);
+    sel4cp_mr_set(3, new_ip4_addr);
+    sel4cp_ppcall(ARP, sel4cp_msginfo_new(CHANGE_IP, 4));
+}
 
-        void remove_ip4(old_ip4_addr, mac_addr[6])
-        {
-            sel4cp_mr_set(0, mac_addr[0:4]);
-            sel4cp_mr_set(1, mac_addr[4:6]);
-            sel4cp_mr_set(2, old_ip4_addr);
-            sel4cp_ppcall(ARP, sel4cp_msginfo_new(REMOVE_IP, 3));
-        }
+void remove_ip4(old_ip4_addr, mac_addr[6])
+{
+    sel4cp_mr_set(0, mac_addr[0:4]);
+    sel4cp_mr_set(1, mac_addr[4:6]);
+    sel4cp_mr_set(2, old_ip4_addr);
+    sel4cp_ppcall(ARP, sel4cp_msginfo_new(REMOVE_IP, 3));
+}
     \end{lstlisting}
 \end{minipage}
 
 Currently, the ARP component can only store a single IPv4 address per client, which
 is enough for our testing purposes, however this limit can be extended easily in the code
-base should the need arise.
-
+base should the need arise.\\
 
 \section{Client Applications}
 
 \subsection{Asymmetric Traffic}
+% describe new client applications and test apps. 
+
 \subsection{Client Initiated Transmit}
+% describe client transmit benchmark. 
+
+\section{Multicore systems}
+
+\subsection{Two-threaded driver}

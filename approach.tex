@@ -115,9 +115,6 @@ following variables to experiment with:
     higher priority client's queue size.
 \end{itemize}
 
-All up there are a large number of possible test cases. A sample of use cases, along with the
-expected findings, can be found in \autoref{appendix}.
-
 \subsection{Support multicore systems}\label{s:multicore}
 The sDDF is implemented on top of seL4CP, which already supports multicore systems, so there are minimal changes required
 to achieve this. As the transport layer is lock-free and system calls are kept to a minimum, the framework itself 
