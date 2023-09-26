@@ -1,0 +1,9 @@
+#!/bin/sh
+
+sh ./mkmulticlient AgtB_RxU32.eps clientA_AgtB_RxU32.ipbench clientB_AgtB_RxU32.ipbench
+sh ./mkmulticlientlatency AgtB_RxU32_latency.eps clientA_AgtB_RxU32.ipbench clientB_AgtB_RxU32.ipbench
+sh ./mkmulticlient AB_RxU32.eps clientA_AB_RxU16.ipbench clientB_AB_RxU16.ipbench
+sh ./mkmulticlient AgtB_Overload.eps clientA_AgtB_Overload.ipbench clientB_AgtB_Overload.ipbench
+sh ./mkmulticlient AgtB_RxU32_overload.eps clientA_AgtB_RxU32_overload.ipbench clientB_AgtB_RxU32_overload.ipbench
+sh ./mkmulticlient AgtB_RxTxU16.eps clientA_AgtB_RxTxU16.ipbench clientB_AgtB_RxTxU16.ipbench
+sh ./mkmulticlient Tx_Limited.eps clientA_Tx_Limited.ipbench clientB_Tx_Limited.ipbench

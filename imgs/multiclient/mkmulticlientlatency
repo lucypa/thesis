@@ -1,6 +1,7 @@
 #!/bin/sh
 
 : "${KEY:=outside below }"
+: "${FILENAME:="$1"}"
 #
 # UDP echo test generatees
 
@@ -18,14 +19,14 @@
 #              median     $9
 # CPU          %          $10
 
-gawk -v "key=${KEY}" -F ',' '
+gawk -v "key=${KEY}" -v "filename=${FILENAME}" -F ',' '
 function fname()
 {
     f = FILENAME
-    if (f ~ /5-comp/)
-        f = "seL4"
-    else if (f ~ /linux/)
-       f = "Linux"
+    if (f ~ /clientA/)
+        f = "Client A"
+    else if (f ~ /clientB/)
+       f = "Client B"
     return f
 }
 
@@ -49,7 +50,7 @@ function plot()
 	if (i == 1) {
 	    return
         }
-	plotcmd = plotcmd inter " \"-\" using 1:2:3 axes x1y1 title \"" curfile " Xput\"  with xerrorlines ls " ls++ ", \"-\" using 1:4:5 axes x1y2 title \"CPU\" with xerrorlines ls " ls++
+	plotcmd = plotcmd inter " \"-\" using 1:2:3 axes x1y1 title \"" curfile " RTT\"  with xerrorlines ls " ls++ ", \"-\" using 1:4:5 axes x1y2 title \"CPU\" with xerrorlines ls " ls++
 	inter = ", "
 	asort(points)
 	for (x = 1; x < i; x++)
@@ -77,37 +78,30 @@ BEGIN {
         ltyp[6] = 3
         ltyp[7] = 6
         ltyp[8] = 8
-	printf "set y2label \"CPU Utilization (%)\" offset -2,0,0\nset xlabel \"Load (Mb/s)\" offset 0,0.7,0\nset ylabel \"Throughput (Mb/s)\" offset 1,0,0\nset y2tics border\n"
-	print "set yrange [0:1000]"
+	printf "set y2label \"CPU Utilization (%)\" offset -2,0,0\nset xlabel \"Load (Mb/s)\" offset 0,0.7,0\nset ylabel \"Median RTT (us)\" offset 1,0,0\nset y2tics border\n"
+	print "set yrange [0:10000]"
 	print "set y2range [0:100]"
-#	print "set xrange [0:1500]"
         print "set xtics nomirror rotate"
         print "set ytics nomirror"
 	print "set bmargin 7.5"
 	print "set key " key
-#       print "set size 0.7 , 0.9"
         print "set size 1,1.3"
         print "set style line 1 lw 6 lt 1"
-#	for (i = 2; i < 9; i++)
-#	    print "set style line " i " lw 2 lt " ltyp[i]
-	# Linux yellow
-	print "set style line 1 lw 6 lt 7 dt 1 lc rgb '0xfbbd05'"
-	print "set style line 2 lw 2 lt 7 ps .5 dt 1 lc rgb '0xfbbd05'"
-	print "set style line 3 lw 2 lt 4 ps .3 dt 3 lc rgb '0xfbbd05'"
-	# seL4 green
-	print "set style line 4 lw 2 lt 7 ps .5 dt 1 lc rgb '0xa5d162'"
-	print "set style line 5 lw 2 lt 4 ps .3 dt 3 lc rgb '0xa5d162'"
-	print "set style line 6 lw 2 lt 7 dt 3 lc rgb '0xa5d162'"
+
+	# Red for client 0
+	print "set style line 1 lw 6 lt 7 dt 1 lc rgb '0xff0000'"
+	print "set style line 2 lw 2 lt 7 ps .5 dt 1 lc rgb '0xff0000'"
+	print "set style line 3 lw 2 lt 4 ps .3 dt 3 lc rgb '0x00c000'"
+	# Blue for client 1
+	print "set style line 4 lw 2 lt 7 ps .5 dt 1 lc rgb '0x0080ff'"
+	print "set style line 5 lw 2 lt 4 ps .3 dt 3 lc rgb '0x00c000'"
+	print "set style line 6 lw 2 lt 7 dt 3 lc rgb '0x00c000'"
 	print "set style line 7 lw 2 lt 6"
 	print "set style line 8 lw 2 lt 8"
 	print "set term postscript eps enhanced color size 2.5,1.5"
-#	print "set size ratio 0.6"
-#	print "set term svg dynamic"
-	print "set output \"throughput.eps\""
-
+	print "set output " sprintf("\"%s\"", filename)
 
 	inter = ""
-#	plotcmd = "plot 1.0e9 * (x / (x + 38)) title \"Wire Speed\" with lines ls " ls "axes x1y2"
 	plotcmd = "plot "
 	ls++
 }
@@ -130,6 +124,7 @@ NF == 11 || NF == 10 || NF == 9 {
 	pps = $2/1000000
 #	load = $3 / pktsz /1000
 	load = int($3 / 1000000)
+    latency = $9
 
 	if (NF == 10) {
 	   percentcpu = $10
@@ -144,8 +139,8 @@ NF == 11 || NF == 10 || NF == 9 {
 	    cpusqr[load] += percentcpu * percentcpu
 	    cpucount[load] = cpucount[load] + 1
 	}
-	bps[load] += pps
-	bpssqr[load] += pps*pps
+	bps[load] += latency
+	bpssqr[load] += latency*latency
 	count[load] = count[load] + 1
 	next
     }
@@ -157,4 +152,5 @@ END {
 	print plotcmd
 	print pointset
 }
-' $@ | tee mk.gnuplot |gnuplot
+' "${@:2}" | tee multi_client_latency.gnuplot | gnuplot
+
