@@ -1,5 +1,9 @@
 #!/bin/sh
 
+
+sh ./mkimage 6.1.1-linux.ipbench 5-comp.ipbench
+sh ./mklatencies 6.1.1-linux.ipbench 5-comp.ipbench
+sh ./mkmulticlient AB.eps clientA_AB.ipbench clientB_AB.ipbench
 sh ./mkmulticlient AgtB_RxU32.eps clientA_AgtB_RxU32.ipbench clientB_AgtB_RxU32.ipbench
 sh ./mkmulticlientlatency AgtB_RxU32_latency.eps clientA_AgtB_RxU32.ipbench clientB_AgtB_RxU32.ipbench
 sh ./mkmulticlient AB_RxU32.eps clientA_AB_RxU16.ipbench clientB_AB_RxU16.ipbench

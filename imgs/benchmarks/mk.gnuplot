@@ -12,7 +12,7 @@ set size 1,1.3
 set style line 1 lw 6 lt 1
 set style line 1 lw 6 lt 7 dt 1 lc rgb 0xfbbd05
 set style line 2 lw 2 lt 7 ps .5 dt 1 lc rgb 0xfbbd05
-set style line 3 lw 2 lt 4 ps .3 dt 3 lc rgb 0x0000ff
+set style line 3 lw 2 lt 4 ps .3 dt 3 lc rgb 0xfbbd05
 set style line 4 lw 2 lt 7 ps .5 dt 1 lc rgb 0xa5d162
 set style line 5 lw 2 lt 4 ps .3 dt 3 lc rgb 0xa5d162
 set style line 6 lw 2 lt 7 dt 3 lc rgb 0xa5d162
