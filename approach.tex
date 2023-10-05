@@ -15,7 +15,8 @@ of this thesis, keeping each component simple will aid any future verification e
 This enables the framework to be flexible and support different use cases while keeping the implementation simple.
 \item \textbf{Secure}: The framework should be secure by taking advantage of the security properties provided by seL4. seL4 guarantees
 complete isolation of user-level components, and its capability system provides fine grained access control. This motivates the framework to apply
-the principle of least authority: components \emph{only} have the minimum capabilities required to perform their job.
+the principle of least authority: components \emph{only} have the minimum capabilities required to perform their job. Clients must not be able
+to interfere with one another. 
 \item \textbf{Performance}: The solution should be performance competitive with the current prototype (see \autoref{ch:prelim_eval}),
 as well as with other existing I/O frameworks (see \autoref{ch:related_work}).
 \end{itemize}
@@ -30,6 +31,7 @@ To accomplish our goal, we need to:
     \item Support execution across multiple CPUs, \autoref{s:multicore}
     \item Evaluate and optimise: evaluate the solution by benchmarking the system throughout development 
     and improve any performance bottlenecks.
+    \item Perform a threat analysis of the framework to outline, and where possible, improve any security vulnerabilities in our design. 
 \end{enumerate}
 
 Additionally, should time permit, the following task is identified as a stretch goal:

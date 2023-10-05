@@ -32,17 +32,33 @@ the seL4 Core Platform model. Clients make requests through shared memory and se
 which simplifies the device driver code to an event loop reacting to either client requests or hardware
 events as shown in \autoref{l:driver_pseudo}. 
 
-\begin{lstlisting}[tabsize=2, language=C, caption={Driver pseudo code},frame=tb, label={l:driver_pseudo}, captionpos=b]
-    main() {
-        init()
-        while(true)
-            event = Wait()
-            if (event & IRQ)
-                handle_irq()
-            if (event & CLIENT_REQ)
-                handle_request()
-    }
-\end{lstlisting}
+\begin{figure} [H]
+\begin{minted}[]{c}
+main() {
+    init()
+    while(true)
+        event = Wait()
+        if (event & IRQ)
+            handle_irq()
+        if (event & CLIENT_REQ)
+            handle_request()
+}
+\end{minted}
+\caption{Driver pseudo code}
+\label{l:driver_pseudo}
+\end{figure}
+
+% \begin{lstlisting}[tabsize=2, language=C, caption={Driver pseudo code},frame=tb, label={l:driver_pseudo}, captionpos=b]
+% main() {
+%     init()
+%     while(true)
+%         event = Wait()
+%         if (event & IRQ)
+%             handle_irq()
+%         if (event & CLIENT_REQ)
+%             handle_request()
+% }
+% \end{lstlisting}
 
 \section{Transport Layer}
 The sDDF transport layer consists of 3 distinct shared memory regions, data structures for data management
@@ -80,17 +96,33 @@ in the respective data region. Each ring buffer has exactly one producer (the se
 and one consumer (the driver in \autoref{f:control}). The producer
 only ever updates the head and the consumer only ever updates the tail.
 
-\begin{lstlisting}[tabsize=2, language=C, caption={Ring Buffer Queues},frame=tb, label={l:queues}, captionpos=b]
-    struct buffer_descr {
-        void   *address;
-        size_t length;
-    }
-    struct ring_buffer {
-        uint32_t head;
-        uint32_t tail;
-        struct buffer_descr buffer[RING_SIZE];
-    }
-\end{lstlisting}
+\begin{figure} [H]
+\begin{minted}[]{c}
+struct buffer_descr {
+    void   *address;
+    size_t length;
+}
+struct ring_buffer {
+    uint32_t head;
+    uint32_t tail;
+    struct buffer_descr buffer[RING_SIZE];
+}
+\end{minted}
+\caption{Ring Buffer Queues}
+\label{l:queues}
+\end{figure}
+
+% \begin{lstlisting}[tabsize=2, language=C, caption={Ring Buffer Queues},frame=tb, label={l:queues}, captionpos=b]
+%     struct buffer_descr {
+%         void   *address;
+%         size_t length;
+%     }
+%     struct ring_buffer {
+%         uint32_t head;
+%         uint32_t tail;
+%         struct buffer_descr buffer[RING_SIZE];
+%     }
+% \end{lstlisting}
 
 Lock free updates to these queues are possible by utilising the property that reads and writes of small
 integers are atomic. We simply use a \emph{write memory barrier} before updating the head or tail pointers
@@ -98,40 +130,76 @@ as shown in \autoref{l:queues2} to ensure that no reads or writes are re-ordered
 processor across this point. As the code ensures there is at least one unused buffer between the head and tail,
 the data race is benign and the memory barrier is sufficient to ensure consistency.
 
-\begin{minipage}{\textwidth}
-\centering
-\begin{lstlisting}[tabsize=2, language=C, caption={Ring Buffer Queue Management},frame=tb, 
-                    label={l:queues2}, captionpos=b]
-    bool full (struct ring_buffer *ring)
-    {
-        return (ring->head - ring->tail + 1) % RING_SIZE == 0;
-    }
-    bool empty (struct ring_buffer *ring)
-    {
-        return (ring->head - ring->tail) % RING_SIZE == 0;
-    }
-    void enqueue (struct buffer_descr *buffer, 
-                struct ring_buffer *ring) 
-    {
-        assert ( !full(ring) );
-        ring->buffer[ring->head % RING_SIZE] = *buffer;
+
+\begin{figure} [H]
+\begin{minted}[]{c}
+bool full(struct ring_buffer *ring)
+{
+    return (ring->head - ring->tail + 1) % RING_SIZE == 0;
+}
+bool empty(struct ring_buffer *ring)
+{
+    return (ring->head - ring->tail) % RING_SIZE == 0;
+}
+void enqueue(struct buffer_descr *buffer, 
+            struct ring_buffer *ring) 
+{
+    assert ( !full(ring) );
+    ring->buffer[ring->head % RING_SIZE] = *buffer;
+    barrier();
+    ring->head += 1;
+}
+struct buffer_descr *dequeue(struct ring_buffer *ring)
+{
+    struct buffer_descr *buffer;
+    if (empty(ring)) {
+        return NULL;
+    } else {
+        *buffer = ring->buffer[ring->tail % RING_SIZE];
         barrier();
-        ring->head += 1;
+        ring->tail += 1;
+        return *buffer;
     }
-    struct buffer_descr* dequeue (struct ring_buffer *ring)
-    {
-        struct buffer_descr *buffer;
-        if (empty(ring)) {
-            return NULL;
-        } else {
-            *buffer = ring->buffer[ring->tail % RING_SIZE];
-            barrier();
-            ring->tail += 1;
-            return *buffer;
-        }
-    }
-\end{lstlisting}
-\end{minipage}
+}
+\end{minted}
+\caption{Ring Buffer Queue Management}
+\label{l:queues2}
+\end{figure}
+
+% \begin{minipage}{\textwidth}
+% \centering
+% \begin{lstlisting}[tabsize=2, language=C, caption={Ring Buffer Queue Management},frame=tb, 
+%                     label={l:queues2}, captionpos=b]
+%     bool full (struct ring_buffer *ring)
+%     {
+%         return (ring->head - ring->tail + 1) % RING_SIZE == 0;
+%     }
+%     bool empty (struct ring_buffer *ring)
+%     {
+%         return (ring->head - ring->tail) % RING_SIZE == 0;
+%     }
+%     void enqueue (struct buffer_descr *buffer, 
+%                 struct ring_buffer *ring) 
+%     {
+%         assert ( !full(ring) );
+%         ring->buffer[ring->head % RING_SIZE] = *buffer;
+%         barrier();
+%         ring->head += 1;
+%     }
+%     struct buffer_descr* dequeue (struct ring_buffer *ring)
+%     {
+%         struct buffer_descr *buffer;
+%         if (empty(ring)) {
+%             return NULL;
+%         } else {
+%             *buffer = ring->buffer[ring->tail % RING_SIZE];
+%             barrier();
+%             ring->tail += 1;
+%             return *buffer;
+%         }
+%     }
+% \end{lstlisting}
+% \end{minipage}
 
 \section{Device Sharing}\label{s:mux_design}
 In order to share a device with potentially multiple client applications, the sDDF proposes a simple PD whose 

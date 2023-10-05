@@ -129,7 +129,8 @@ again:
     \end{minted}
     \caption{Producer pseudo code}
     \label{l:prod}
-    \end{subfigure}\hfill
+    \end{subfigure}
+
     \begin{subfigure}{0.45\textwidth}
     \begin{minted}[fontsize={\fontsize{8.5}{9.5}\selectfont}]{c}
 dequeue() {
@@ -158,51 +159,51 @@ again:
 \label{l:mpmc}
 \end{figure}
 
-\newpage
-\noindent\begin{minipage}{.45\textwidth}
-\fontsmall
-\begin{lstlisting}[numbers=left, tabsize=2, language=C, caption={Producer pseudo code},frame=tb, label={l:prod}, captionpos=b]
-  enqueue(data) {
-  again:
-  	ph = load(prod.head)
-  	pn = ph + 1
-  	if (pn > load(cons.tail) + SIZE)
-  		return FULL
-  	if (!cas(prod.head, ph, pn))
-  		/* Another producer is 
-  		   using this slot */
-  		goto again
-  	entry[pn] = data
-  	/* Wait until earlier slots have
-  	   successfully committed */
-  	while(load(prod.tail) != ph)
-  	store(prod.tail, pn)
-  	return OK
-  }
-\end{lstlisting} 
-\end{minipage}\hfill
-\begin{minipage}{.45\textwidth}
-\fontsmall
-\begin{lstlisting}[numbers=left, tabsize=2, language=C, caption={Consumer pseudo code},frame=tb, label={l:cons}, captionpos=b]
-  dequeue() {
-  again:
-  	ch = load(cons.head)
-  	cn = ch + 1
-  	if (cn > load(prod.tail))
-  		return EMPTY
-  	if (!cas(cons.head, ch, cn))
-  		/* Another consumer is 
-  		   consuming this slot */
-  		goto again
-  	data = entry[cn]
-  	/* Wait until earlier slots have 
-       successfully committed */
-  	while(load(cons.tail) != ch)
-  	store(cons.tail, cn)
-  	return data
-  }
-\end{lstlisting}
-\end{minipage}
+% \newpage
+% \noindent\begin{minipage}{.45\textwidth}
+% \fontsmall
+% \begin{lstlisting}[numbers=left, tabsize=2, language=C, caption={Producer pseudo code},frame=tb, label={l:prod}, captionpos=b]
+%   enqueue(data) {
+%   again:
+%   	ph = load(prod.head)
+%   	pn = ph + 1
+%   	if (pn > load(cons.tail) + SIZE)
+%   		return FULL
+%   	if (!cas(prod.head, ph, pn))
+%   		/* Another producer is 
+%   		   using this slot */
+%   		goto again
+%   	entry[pn] = data
+%   	/* Wait until earlier slots have
+%   	   successfully committed */
+%   	while(load(prod.tail) != ph)
+%   	store(prod.tail, pn)
+%   	return OK
+%   }
+% \end{lstlisting} 
+% \end{minipage}\hfill
+% \begin{minipage}{.45\textwidth}
+% \fontsmall
+% \begin{lstlisting}[numbers=left, tabsize=2, language=C, caption={Consumer pseudo code},frame=tb, label={l:cons}, captionpos=b]
+%   dequeue() {
+%   again:
+%   	ch = load(cons.head)
+%   	cn = ch + 1
+%   	if (cn > load(prod.tail))
+%   		return EMPTY
+%   	if (!cas(cons.head, ch, cn))
+%   		/* Another consumer is 
+%   		   consuming this slot */
+%   		goto again
+%   	data = entry[cn]
+%   	/* Wait until earlier slots have 
+%        successfully committed */
+%   	while(load(cons.tail) != ch)
+%   	store(cons.tail, cn)
+%   	return data
+%   }
+% \end{lstlisting}
+% \end{minipage}
 
 The performance degradation comes from two possible places:
 \begin{enumerate}
