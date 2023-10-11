@@ -359,13 +359,35 @@ our framework under high loads where the CPU cannot keep up with the traffic to 
 ensuring that the system abides by any policy implemented in a multi-client set up. We alter the echo application to perform 10 unecessary data copies
 and checksum calculations.
 
-\section{Multicore systems}
+\section{Two-threaded driver on multicore systems}
+A device driver has multiple tasks: it must react to hardware events as signalled by an interrupt and it must react to software events,
+such as a client request. Namely, the driver has 4 tasks:
 
-\subsection{Two-threaded driver}
-% discuss why it's only client size tx rather than split by all client side interfaces. 
+\begin{enumerate}
+    \item Dequeue incoming packets from the hardware receive ring and enqueue them to the RxU queue.
+    \item Dequeue free buffers from the RxF queue and enqueue them to the hardware receive ring.
+    \item Dequeue used transmit buffers from the TxU queue and enqueue them to the hardware transmit ring.
+    \item Dequeue transmitted buffers from the hardware transmit ring and enqueue them to the TxF queue. 
+\end{enumerate}
+
+While these tasks involve interfacing with both hardware and software queues, each task involes
+producing/consuming to different queues and reacting to different events. Task 3 occurs after a client transmit signal, 
+tasks 1 and 4 occur after an interrupt, and task 2 occurs either preemptively after task 1 to ensure the hardware receive
+ring is ready to be received, or after a client signal that more free buffers are available. We can split the driver up into
+two separate components and simplify the workload as shown in \ref{f:two_threaded_driver}.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=\textwidth]{two_threaded_driver.pdf}
+    \caption{Driver architecture with two components}
+    \label{f:two_threaded_driver}
+\end{figure}
+
+The client side driver is responsible for only task 3. It receives a signal from the transmit multiplexer when packets are ready
+to be transmitted, and enqueues them to the tail of the hardware transmit ring. If the hardware transmit ring is full, it waits 
+until it receives a notification from the IRQ side driver when space has freed up. 
 
 \section{Security}
-
 One of our main design goals is prioritise security. This means ensuring each component remains isolated from one another, and in particular, a
 misbehaving client application does not have the ability to interfere with other clients and/or the rest of the system. Clients receive
 data by dequeuing metadata, including buffer addresses, from a shared ring buffer, and transmit data by enqueueing such metadata. 
@@ -398,13 +420,14 @@ for transmit and before the buffer returns in the free queue). Specifically, we 
     other devices on the network.
     \item Signal the transmit multiplexer after enqueueing used transmit buffers.\\
     If the client does not signal the multiplexer, enqueued transmit packets may never be sent. This only affects the client itself.
-    \item Update the tail pointer of the TxF queue after dequeueing free transmit buffers. If this is not done and the multiplexer
-        incorrectly sees the queue as non empty, it may write over client data thus mucking up the clients transmit requests. If
-        the multiplexer incorrectly sees the queue as full, it will panic. This is because the multiplexer assumes the clients 
-        transmit free queues are never full (as when it dequeues a new free buffer from the driver, it cannot know in advance where 
-        to return the buffer). If one client misbehaves, then it may prevent the multiplexer from dequeuing more free buffers 
-        from the driver side and returning them to clients. This has the potential the corrupt the entire transmit path for all
-        client applications.
+    \item Update the tail pointer of the TxF queue after dequeueing free transmit buffers.\\
+    If this is not done and the multiplexer
+    incorrectly sees the queue as non empty, it may write over client data thus mucking up the clients transmit requests. If
+    the multiplexer incorrectly sees the queue as full, it will panic. This is because the multiplexer assumes the clients 
+    transmit free queues are never full (as when it dequeues a new free buffer from the driver, it cannot know in advance where 
+    to return the buffer). If one client misbehaves, then it may prevent the multiplexer from dequeuing more free buffers 
+    from the driver side and returning them to clients. This has the potential the corrupt the entire transmit path for all
+    client applications.
 \end{enumerate}
 
 From the above analysis, and assuming all components other than the client applications are trustworthy,
