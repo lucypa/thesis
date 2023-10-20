@@ -89,14 +89,14 @@ BEGIN {
         print "set style line 1 lw 6 lt 1"
 #	for (i = 2; i < 9; i++)
 #	    print "set style line " i " lw 2 lt " ltyp[i]
-	# Linux yellow
-	print "set style line 1 lw 6 lt 7 dt 1 lc rgb '0xfbbd05'"
-	print "set style line 2 lw 2 lt 7 ps .5 dt 1 lc rgb '0xfbbd05'"
-	print "set style line 3 lw 2 lt 4 ps .3 dt 3 lc rgb '0xfbbd05'"
+	# Linux blue
+	print "set style line 1 lw 6 lt 7 dt 1 lc rgb '0x77b4e0'"
+	print "set style line 2 lw 4 lt 7 ps .5 dt 1 lc rgb '0x77b4e0'"
+	print "set style line 3 lw 4 lt 4 ps .3 dt 3 lc rgb '0x77b4e0'"
 	# seL4 green
-	print "set style line 4 lw 2 lt 7 ps .5 dt 1 lc rgb '0xa5d162'"
-	print "set style line 5 lw 2 lt 4 ps .3 dt 3 lc rgb '0xa5d162'"
-	print "set style line 6 lw 2 lt 7 dt 3 lc rgb '0xa5d162'"
+	print "set style line 4 lw 4 lt 7 ps .5 dt 1 lc rgb '0xa5d162'"
+	print "set style line 5 lw 4 lt 4 ps .3 dt 3 lc rgb '0xa5d162'"
+	print "set style line 6 lw 3 lt 7 dt 3 lc rgb '0xa5d162'"
 	print "set style line 7 lw 2 lt 6"
 	print "set style line 8 lw 2 lt 8"
 	print "set term postscript eps enhanced color size 2.5,1.5"

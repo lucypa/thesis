@@ -1,29 +1,32 @@
-set y2label "CPU Utilization (%)" offset -2,0,0
+set y2label "CPU Utilization (%)" offset -1,0,0
 set xlabel "Load (Mb/s)" offset 0,0.7,0
 set ylabel "Throughput (Mb/s)" offset 1,0,0
 set y2tics border
-set yrange [0:1100]
-set y2range [0:110]
+set yrange [0:1700]
+set y2range [0:170]
 set xtics nomirror rotate
 set ytics nomirror
 set bmargin 9
 set key outside below 
+set key font ",10.5"
 set size 1,1.3
 set style line 1 lw 6 lt 1
 set style line 1 lw 6 lt 7 dt 1 lc rgb 0xfccf03
-set style line 2 lw 2 lt 7 ps .5 dt 1 lc rgb 0xfccf03
-set style line 3 lw 2 lt 4 ps .3 dt 3 lc rgb 0xfccf03
-set style line 4 lw 2 lt 7 ps .5 dt 1 lc rgb 0xd49fc0
-set style line 5 lw 2 lt 4 ps .3 dt 3 lc rgb 0xd49fc0
-set style line 6 lw 2 lt 7 ps .5 dt 1 lc rgb 0xb1d190
-set style line 7 lw 2 lt 4 ps .3 dt 3 lc rgb 0xb1d190
-set style line 8 lw 2 lt 7 ps .5 dt 1 lc rgb 0xc98189
-set style line 9 lw 2 lt 4 ps .3 dt 3 lc rgb 0xc98189
+set style line 2 lw 4 lt 7 ps .5 dt 1 lc rgb 0xfccf03
+set style line 3 lw 4 lt 4 ps .3 dt 3 lc rgb 0xfccf03
+set style line 4 lw 4 lt 7 ps .5 dt 1 lc rgb 0xd49fc0
+set style line 5 lw 4 lt 4 ps .3 dt 3 lc rgb 0xd49fc0
+set style line 6 lw 4 lt 7 ps .5 dt 1 lc rgb 0xb1d190
+set style line 7 lw 4 lt 4 ps .3 dt 3 lc rgb 0xb1d190
+set style line 8 lw 4 lt 7 ps .5 dt 1 lc rgb 0xc98189
+set style line 9 lw 4 lt 4 ps .3 dt 3 lc rgb 0xc98189
+set style line 10 lw 4 lt 7 ps .5 dt 1 lc rgb 0x77b4e0
+set style line 11 lw 4 lt 4 ps .3 dt 3 lc rgb 0x77b4e0
 set style line 13 lw 2 lt 6
 set style line 14 lw 2 lt 8
 set term postscript eps enhanced color size 2.5,1.5
-set output "multicore.eps"
-plot  "-" using 1:2:3 axes x1y1 title "Driver XPUT"  with xerrorlines ls 2, "-" using 1:4:5 axes x1y2 title "CPU" with xerrorlines ls 3,  "-" using 1:2:3 axes x1y1 title "Rx MUX XPUT"  with xerrorlines ls 4, "-" using 1:4:5 axes x1y2 title "CPU" with xerrorlines ls 5,  "-" using 1:2:3 axes x1y1 title "Copier XPUT"  with xerrorlines ls 6, "-" using 1:4:5 axes x1y2 title "CPU" with xerrorlines ls 7,  "-" using 1:2:3 axes x1y1 title "Client XPUT"  with xerrorlines ls 8, "-" using 1:4:5 axes x1y2 title "CPU" with xerrorlines ls 9
+set output "multicore_linux_distr.eps"
+plot  "-" using 1:2:3 axes x1y1 title "Driver XPUT"  with xerrorlines ls 2, "-" using 1:4:5 axes x1y2 title "Driver CPU" with xerrorlines ls 3,  "-" using 1:2:3 axes x1y1 title "Rx MUX XPUT"  with xerrorlines ls 4, "-" using 1:4:5 axes x1y2 title "Rx MUX CPU" with xerrorlines ls 5,  "-" using 1:2:3 axes x1y1 title "Copier XPUT"  with xerrorlines ls 6, "-" using 1:4:5 axes x1y2 title "Copier CPU" with xerrorlines ls 7,  "-" using 1:2:3 axes x1y1 title "Client XPUT"  with xerrorlines ls 8, "-" using 1:4:5 axes x1y2 title "Client CPU" with xerrorlines ls 9,  "-" using 1:2:3 axes x1y1 title "Linux XPUT"  with xerrorlines ls 10, "-" using 1:4:5 axes x1y2 title "Linux CPU" with xerrorlines ls 11
 
 000100 100.037 0 36.1544 0
 000199 200.095 0 47.4236 0
@@ -116,4 +119,27 @@ e
 000800 800.06 0 84.8096 0
 000899 899.996 0 91.9361 0
 000999 957.096 0 96.5553 0
+e
+000100 100 0 40 0
+000200 200 0 56 0
+000300 300.006 0 76 0
+000399 400.005 0 100 0
+000500 500.038 0 112 0
+000599 600.003 0 128 0
+000699 699.971 0 136 0
+000799 792.239 0 152 0
+000899 806.517 0 164 0
+000999 809.902 0 164 0
+e
+
+000100 100 0 40 0
+000200 200 0 56 0
+000300 300.006 0 76 0
+000399 400.005 0 100 0
+000500 500.038 0 112 0
+000599 600.003 0 128 0
+000699 699.971 0 136 0
+000799 792.239 0 152 0
+000899 806.517 0 164 0
+000999 809.902 0 164 0
 e

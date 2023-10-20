@@ -31,6 +31,8 @@ function fname()
        f = "Copier"
     else if (f ~ /client_multi/)
        f = "Client"
+    else if (f ~/linux_multi/)
+       f = "Linux"
     return f
 }
 
@@ -54,7 +56,7 @@ function plot()
 	if (i == 1) {
 	    return
         }
-	plotcmd = plotcmd inter " \"-\" using 1:2:3 axes x1y1 title \"" curfile " XPUT\"  with xerrorlines ls " ls++ ", \"-\" using 1:4:5 axes x1y2 title \"CPU\" with xerrorlines ls " ls++
+	plotcmd = plotcmd inter " \"-\" using 1:2:3 axes x1y1 title \"" curfile " XPUT\"  with xerrorlines ls " ls++ ", \"-\" using 1:4:5 axes x1y2 title \"" curfile " CPU\" with xerrorlines ls " ls++
 	inter = ", "
 	asort(points)
 	for (x = 1; x < i; x++)
@@ -82,13 +84,14 @@ BEGIN {
         ltyp[6] = 3
         ltyp[7] = 6
         ltyp[8] = 8
-	printf "set y2label \"CPU Utilization (%)\" offset -2,0,0\nset xlabel \"Load (Mb/s)\" offset 0,0.7,0\nset ylabel \"Throughput (Mb/s)\" offset 1,0,0\nset y2tics border\n"
-	print "set yrange [0:1100]"
-	print "set y2range [0:110]"
+	printf "set y2label \"CPU Utilization (%)\" offset -1,0,0\nset xlabel \"Load (Mb/s)\" offset 0,0.7,0\nset ylabel \"Throughput (Mb/s)\" offset 1,0,0\nset y2tics border\n"
+	print "set yrange [0:1700]"
+	print "set y2range [0:170]"
         print "set xtics nomirror rotate"
         print "set ytics nomirror"
 	print "set bmargin 9"
 	print "set key " key
+    print "set key font \",10.5\""
         print "set size 1,1.3"
         print "set style line 1 lw 6 lt 1"
 
@@ -105,6 +108,9 @@ BEGIN {
     # Red for client
 	print "set style line 8 lw 4 lt 7 ps .5 dt 1 lc rgb '0xc98189'"
 	print "set style line 9 lw 4 lt 4 ps .3 dt 3 lc rgb '0xc98189'"
+    # Blue for Linux 
+	print "set style line 10 lw 4 lt 7 ps .5 dt 1 lc rgb '0x77b4e0'"
+	print "set style line 11 lw 4 lt 4 ps .3 dt 3 lc rgb '0x77b4e0'"
 
 	print "set style line 13 lw 2 lt 6"
 	print "set style line 14 lw 2 lt 8"

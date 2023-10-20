@@ -1,6 +1,5 @@
 #!/bin/sh
 
-
 sh ./mkimage 6.1.1-linux.ipbench 5-comp.ipbench
 sh ./mklatencies 6.1.1-linux.ipbench 5-comp.ipbench
 sh ./mkmulticlient AB.eps clientA_AB.ipbench clientB_AB.ipbench
@@ -11,3 +10,6 @@ sh ./mkmulticlient AgtB_Overload.eps clientA_AgtB_Overload.ipbench clientB_AgtB_
 sh ./mkmulticlient AgtB_RxU32_overload.eps clientA_AgtB_RxU32_overload.ipbench clientB_AgtB_RxU32_overload.ipbench
 sh ./mkmulticlient AgtB_RxTxU16.eps clientA_AgtB_RxTxU16.ipbench clientB_AgtB_RxTxU16.ipbench
 sh ./mkmulticlient Tx_Limited.eps clientA_Tx_Limited.ipbench clientB_Tx_Limited.ipbench
+sh ./mkmulticoredistr multicore_distr.eps driver_multicore_dist.ipbench rx_mux_multicore_dist.ipbench copier_multicore_dist.ipbench client_multicore_dist.ipbench
+sh ./mkmulticorelinuxdist multicore_linux_distr.eps driver_multicore_dist.ipbench rx_mux_multicore_dist.ipbench copier_multicore_dist.ipbench client_multicore_dist.ipbench linux_multicore.ipbench
+sh ./mkmulticlient_multicore_overload multicore_overload.eps clientA_multicore_overload.ipbench clientB_multicore_overload.ipbench clientC_multicore_overload.ipbench clientD_multicore_overload.ipbench 4_client_multicore.ipbench

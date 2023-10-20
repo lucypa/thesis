@@ -80,7 +80,7 @@ void process_transmit_ready():
             
         /* we haven't processed any packets since 
             last loop, exit */
-        if (old_enqueued == enqueued) break;
+        if (old_enqueued == enqueued) break
 \end{minted}
 \caption{Transmit Round Robin Policy}
 \label{l:roundrobin}
@@ -119,9 +119,12 @@ void process_transmit_ready():
 
 \subsubsection{Bandwidth Limited Policy}
 
-We implement a bandwidth limited policy in \autoref{l:bandwidth}. This multiplexer must
-also communicate with a timer driver to get the time and set timeouts. The timer driver
-API is shown in \autoref{l:timer}.
+We implement a bandwidth limited policy in \autoref{l:bandwidth}. The multiplexer will 
+process client transmit requests, caluclating how much bandwidth the client has used based on
+each request size in a given time window. Should a client exceed its limit within the time window,
+the multiplexer will request a time out from the timer driver for the remaining time. As the multiplexer must
+regularly communicate with the timer driver to get the time and set timeouts, we design a simple timer driver
+API as shown in \autoref{l:timer}.
 
 \begin{figure} [H]
     \begin{minted}[]{c}
@@ -189,10 +192,10 @@ of each client. For example, to enforce a round robin policy, we run both client
 at equal priorities, and limit their transmit used queues to just one. This ensures
 that each client will be stalled until their single request has been processed, and
 another client will have the opportunity to run in the interim. The multiplexer will
-then only process a single request per client at a time.\\
+then only process a single request per client at a time, though at the detriment to performance.\\
 Similarly, should we require a priority based policy, we can set appropriate priorities
-to the clients scheduling contexts and rely on the scheduling of the system to reinforce
-this policy.\\
+to the clients and limit lower priority clients queue sizes, thus relying on the scheduling
+of the system to reinforce this policy.\\
 Finally, we can limit the clients queue sizes on both the transmit and/or receive paths
 to limit the amount of either transmit and/or receive throughput available to each client.
 Appropriate sizes can be selected based on experients discussed in \autoref{ch:evaluation}.\\ 
@@ -315,7 +318,7 @@ the client can resume the transmit context.
 \end{figure}
 
 We store the transmit context by simply linking pbuf chains together and storing the head and tail of the list. 
-\ref{f:pbufs} shows how multiple chains of pbufs can be linked together. When a chain of pbufs is ready to
+\autoref{f:pbufs} shows how multiple chains of pbufs can be linked together. When a chain of pbufs is ready to
 be transmitted, but there aren't any free transmit buffers, we append the chain to the tail of the list and 
 increment the reference count of the chain. This ensures the pbufs won't be freed until they have actually been sent.
 When a client is notified of the availability of more free transmit buffers, we dequeue pbuf chains from the head of
@@ -342,14 +345,14 @@ is available to process any incoming traffic in the interim.
 \subsubsection{Receive dominant application}
 We also implement a simple receive dominant client application that for every 10,000 UDP packets received, it transmits a single one.
 This application is much simpler to implement as all memory management is already dealt with so we just adapt the echo server to 
-only echo every 10000th packet.\\
+only echo every 10,000th packet.\\
 
 \subsection{Client Initiated Transmit}
 Not all networking devices act as servers that only react to incoming traffic. A common use case of a non-reactive application is a 
 web client which initiates network communication with another networking device. To test such a scenario, we implement another client
 application which first initiates a handshake with another device, then transmits 100,000 packets. The initial handshake is there to 
 ensure the external benchmarking application is ready to receive all incoming packets. We interface with lwIP as described
-in \ref{s:transmit_dom}.
+in \autoref{s:transmit_dom}.
 
 \subsection{Computation heavy applications}
 Another limitation of the test environment is that the client applications do not actually do any processing with the incoming or outgoing traffic.
@@ -374,7 +377,7 @@ While these tasks involve interfacing with both hardware and software queues, ea
 producing/consuming to different queues and reacting to different events. Task 3 occurs after a client transmit signal, 
 tasks 1 and 4 occur after an interrupt, and task 2 occurs either preemptively after task 1 to ensure the hardware receive
 ring is ready to be received, or after a client signal that more free buffers are available. We can split the driver up into
-two separate components and simplify the workload as shown in \ref{f:two_threaded_driver}.
+two separate components and simplify the workload as shown in \autoref{f:two_threaded_driver}.
 
 \begin{figure}[h]
     \centering
@@ -385,7 +388,9 @@ two separate components and simplify the workload as shown in \ref{f:two_threade
 
 The client side driver is responsible for only task 3. It receives a signal from the transmit multiplexer when packets are ready
 to be transmitted, and enqueues them to the tail of the hardware transmit ring. If the hardware transmit ring is full, it waits 
-until it receives a notification from the IRQ side driver when space has freed up. 
+until it receives a notification from the IRQ side driver when space has freed up.\\
+However, introducing an additional component to the framework will incur additional performance overheads due to extra context switches required.
+We first analyse these overheads in \autoref{ch:evaluation} before concluding whether this design is appropriate on multicore systems. 
 
 \section{Security}
 One of our main design goals is prioritise security. This means ensuring each component remains isolated from one another, and in particular, a
@@ -448,7 +453,7 @@ all transmit traffic, including that of other clients.\\
 \subsection{Transmit Copy Component}
 
 To remove these vulnerabilities, we can mimic the receive path by injecting a small, trusted component in between each untrusted
-client application and the shared multiplexer as shown in \ref{f:tx_copy}. The component can be configured as per the system design,
+client application and the shared multiplexer as shown in \autoref{f:tx_copy}. The component can be configured as per the system design,
 or even removed all together if not required.
 
 \begin{figure}[h]
@@ -471,4 +476,4 @@ Like the receive path copy components, should a client misbehave when interactin
 the protocol, the new tx copy component will ignore any requests or no longer enqueue free buffers to the client, thus only disturbing
 that client and not affecting any other components in the system.\\
 This additional component would introduce some additional performance overheads. These include the cost of reading packet headers, 
-an extra system call on the transmit path, and potentially the cost of copying the entire packet.\\
+an extra system call on the transmit path, and potentially the cost of copying the entire packet. We analyse these overheads in \autoref{ch:evaluation}.\\

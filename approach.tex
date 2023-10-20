@@ -17,7 +17,7 @@ This enables the framework to be flexible and support different use cases while 
 complete isolation of user-level components, and its capability system provides fine grained access control. This motivates the framework to apply
 the principle of least authority: components \emph{only} have the minimum capabilities required to perform their job. Clients must not be able
 to interfere with one another. 
-\item \textbf{Performance}: The solution should be performance competitive with the current prototype (see \autoref{ch:prelim_eval}),
+\item \textbf{Performance}: The solution should be performance competitive with the current prototype (see \autoref{ch:sddf}),
 as well as with other existing I/O frameworks (see \autoref{ch:related_work}).
 \end{itemize}
 
@@ -29,14 +29,10 @@ To accomplish our goal, we need to:
     \item Implement different client applications that imitate different use cases, \autoref{s:client}
     \item Add a second client to the prototype for testing, \autoref{s:client2}
     \item Support execution across multiple CPUs, \autoref{s:multicore}
+    \item Perform a threat analysis of the framework to outline, and where possible, improve any
+         security vulnerabilities in our design, \autoref{s:security}
     \item Evaluate and optimise: evaluate the solution by benchmarking the system throughout development 
     and improve any performance bottlenecks.
-    \item Perform a threat analysis of the framework to outline, and where possible, improve any security vulnerabilities in our design. 
-\end{enumerate}
-
-Additionally, should time permit, the following task is identified as a stretch goal:
-\begin{enumerate}
-    \item Port the sDDF to an x86 architecture with a 10Gbps NIC, \autoref{s:ixgbe}
 \end{enumerate}
 
 \subsection{Multiplexer Policies} \label{s:mux_pol}
@@ -131,11 +127,18 @@ each of these components could run concurrently on separate cores.\\
 Additionally, concurrent execution could likely reveal bugs in the implementation or performance bottlenecks. Thorough 
 analysis of results will be key in identifying this.
 
-\subsection{Port the sDDF to an x86 architecture with a 10Gbps NIC}\label{s:ixgbe}
-The current prototype runs on the Armv8 architecture. While this architecture is commonly used in IoT systems requiring
-high throughput networking, a significant portion
-of related work has been implemented and benchmarked on an x86 system. In particular, these systems use an ixgbe Ethernet
-driver. In keeping with our design goal of performance, having benchmarks on the same hardware as other high performance
-networking systems would allow us to better compare results.\\
-The seL4 Core Platform does not currently support x86 architectures, and nor do we have a working ixgbe driver for seL4. 
-Both of which are required for this goal.
+\subsection{Security Analysis}\label{s:security}
+Component communication in the sDDF relies on shared memory and asynchronous notifications. While asynchronous communication
+has considerable performance benefits (see \autoref{ch:related_work}), it means we trust each component to abide by the protocol. 
+Future work, left out of scope of this thesis, will explore verifying all trusted components. However, this excludes the client
+applications. We therefore must evaluate the client interfaces to ensure that a misbehaving client cannot interfere with other clients
+nor any of the trusted components, including shared components such as the multiplexers. 
+
+%\subsection{Port the sDDF to an x86 architecture with a 10Gbps NIC}\label{s:ixgbe}
+%The current prototype runs on the Armv8 architecture. While this architecture is commonly used in IoT systems requiring
+%high throughput networking, a significant portion
+%of related work has been implemented and benchmarked on an x86 system. In particular, these systems use an ixgbe Ethernet
+%driver. In keeping with our design goal of performance, having benchmarks on the same hardware as other high performance
+%networking systems would allow us to better compare results.\\
+%The seL4 Core Platform does not currently support x86 architectures, and nor do we have a working ixgbe driver for seL4. 
+%Both of which are required for this goal.
