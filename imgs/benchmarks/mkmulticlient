@@ -27,6 +27,8 @@ function fname()
         f = "Client A"
     else if (f ~ /clientB/)
        f = "Client B"
+	else
+	   f = "Total"
     return f
 }
 
@@ -45,20 +47,30 @@ function plot()
 	    if (!(x in cpucount)) {
 		cpucount[x] = 1;
 	    }
-	    points[i++] = sprintf("%06d",x) " " bps[x]/count[x] " " stddev(bpssqr[x], bps[x], count[x]) " " cpu[x]/cpucount[x] " " stddev(cpusqr[x], cpu[x], cpucount[x])
+		if (curfile == "Total") {
+	    	points[i++] = sprintf("%06d",x) " " bps[x]/count[x] " " stddev(bpssqr[x], bps[x], count[x]) " " cpu[x]/cpucount[x] " " stddev(cpusqr[x], cpu[x], cpucount[x])
+		} else {
+			points[i++] = sprintf("%06d",x) " " bps[x]/count[x] " " stddev(bpssqr[x], bps[x], count[x]) " " cpu[x]/cpucount[x] " " stddev(cpusqr[x], cpu[x], cpucount[x])
+		}
 	}
 	if (i == 1) {
 	    return
         }
-	plotcmd = plotcmd inter " \"-\" using 1:2:3 axes x1y1 title \"" curfile " Xput\"  with xerrorlines ls " ls++ ", \"-\" using 1:4:5 axes x1y2 title \"CPU\" with xerrorlines ls " ls++
+	if (curfile == "Total") {
+		plotcmd = plotcmd inter " \"-\" using 1:2:3 axes x1y1 title \"" curfile " Xput\"  with xerrorlines ls " ls++ ", \"-\" using 1:4:5 axes x1y2 title \"CPU\" with xerrorlines ls " ls++
+	} else {
+		plotcmd = plotcmd inter " \"-\" using 1:2:3 axes x1y1 title \"" curfile " Xput\"  with xerrorlines ls " ls++
+	}
 	inter = ", "
 	asort(points)
 	for (x = 1; x < i; x++)
 		pointset = pointset "\n"  points[x];
 	pointset = pointset "\ne"
-	for (x = 0; x < i; x++)
-		pointset = pointset "\n"  points[x];
-	pointset = pointset "\ne"
+	if (curfile == "Total") {
+		for (x = 0; x < i; x++)
+			pointset = pointset "\n"  points[x];
+		pointset = pointset "\ne"
+	}
 	delete cpu
 	delete cpusqr
 	delete bps
@@ -78,24 +90,29 @@ BEGIN {
         ltyp[6] = 3
         ltyp[7] = 6
         ltyp[8] = 8
-	printf "set y2label \"CPU Utilization (%)\" offset -2,0,0\nset xlabel \"Load (Mb/s)\" offset 0,0.7,0\nset ylabel \"Throughput (Mb/s)\" offset 1,0,0\nset y2tics border\n"
-	print "set yrange [0:500]"
+	printf "set x2label \"Total Load (Mb/s)\" offset 0,-1,0\nset y2label \"CPU Utilization (%)\" offset -1,0,0\nset xlabel \"Load (Mb/s)\" offset 0,0.5,0\nset ylabel \"Throughput (Mb/s)\" offset 1,0,0\nset y2tics border\n"	
+	print "set yrange [0:1000]"
+	print "set xrange [100:500]"
 	print "set y2range [0:100]"
+	print "set x2range [200:1000]"
         print "set xtics nomirror rotate"
         print "set ytics nomirror"
+		print "set x2tics nomirror rotate border"
 	print "set bmargin 7.5"
+	print "set tmargin 5.5"
 	print "set key " key
-        print "set size 1,1.3"
+        print "set size 1,1.6"
         print "set style line 1 lw 6 lt 1"
 
 	# Red for client 0
 	print "set style line 1 lw 6 lt 7 dt 1 lc rgb '0xff0000'"
 	print "set style line 2 lw 4 lt 7 ps .5 dt 1 lc rgb '0xff0000'"
-	print "set style line 3 lw 4 lt 4 ps .3 dt 3 lc rgb '0x00c000'"
 	# Blue for client 1
-	print "set style line 4 lw 4 lt 7 ps .5 dt 1 lc rgb '0x0080ff'"
-	print "set style line 5 lw 4 lt 4 ps .3 dt 3 lc rgb '0x00c000'"
-	print "set style line 6 lw 4 lt 7 dt 3 lc rgb '0x00c000'"
+	print "set style line 3 lw 2 lt 7 ps .5 dt 1 lc rgb '0x0080ff'"
+	# Green for totals
+	print "set style line 4 lw 2 lt 7 ps .5 dt 1 lc rgb '0x00c000'"
+	print "set style line 5 lw 2 lt 4 ps .3 dt 3 lc rgb '0x00c000'"
+	print "set style line 6 lw 2 lt 7 dt 3 lc rgb '0x00c000'"
 	print "set style line 7 lw 2 lt 6"
 	print "set style line 8 lw 2 lt 8"
 	print "set term postscript eps enhanced color size 2.5,1.5"

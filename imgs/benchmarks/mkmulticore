@@ -1,0 +1,166 @@
+#!/bin/sh
+
+: "${KEY:=outside left center }"
+: "${FILENAME:="$1"}"
+#
+# UDP echo test generatees
+
+#
+#              Requested  $1
+# THROUGHPUT   Echoed     $2
+#              Generated  $3
+#
+# PACKETSIZE              $4
+#
+#              min	  $5
+# LATENCY      mean       $6
+#              max        $7
+#              stddev     $8
+#              median     $9
+# CPU          %          $10
+
+gawk -v "key=${KEY}" -v "filename=${FILENAME}" -F ',' '
+function fname()
+{
+    f = FILENAME
+    if (f ~ /5-comp/)
+        f = "Single Core"
+    else if (f ~ /SMP_single_core/)
+       f = "SMP"
+    else if (f ~ /SMP_two_cores/)
+       f = "SMP Two Cores"
+    else if (f ~ /linux/)
+       f = "Linux"
+    return f
+}
+
+function stddev(sumsqr, sum, count)
+{
+	if (count > 1)
+		return sqrt((sumsqr - (sum * sum)/count)/(count-1))
+
+	return sqrt((sumsqr - (sum * sum)))
+}
+
+function plot()
+{
+	i = 1;
+	for (x in bps) {
+	    if (!(x in cpucount)) {
+		cpucount[x] = 1;
+	    }
+	    points[i++] = sprintf("%06d",x) " " bps[x]/count[x] " " stddev(bpssqr[x], bps[x], count[x]) " " cpu[x]/cpucount[x] " " stddev(cpusqr[x], cpu[x], cpucount[x])
+	}
+	if (i == 1) {
+	    return
+        }
+	plotcmd = plotcmd inter " \"-\" using 1:2:3 axes x1y1 title \"" curfile " XPUT\"  with xerrorlines ls " ls++ ", \"-\" using 1:4:5 axes x1y2 title \"CPU\" with xerrorlines ls " ls++
+	inter = ", "
+	asort(points)
+	for (x = 1; x < i; x++)
+		pointset = pointset "\n"  points[x];
+	pointset = pointset "\ne"
+	for (x = 0; x < i; x++)
+		pointset = pointset "\n"  points[x];
+	pointset = pointset "\ne"
+	delete cpu
+	delete cpusqr
+	delete bps
+	delete bpssqr
+	delete points
+	delete pktsizes
+}
+
+BEGIN {
+	million=1.0e6
+	ls = 1
+        ltyp[1] = 1
+        ltyp[2] = 2
+        ltyp[3] = 4
+        ltyp[4] = 7
+        ltyp[5] = 1
+        ltyp[6] = 3
+        ltyp[7] = 6
+        ltyp[8] = 8
+	printf "set y2label \"CPU Utilization (%)\" offset -1,0,0\nset xlabel \"Load (Mb/s)\" offset 0,0.7,0\nset ylabel \"Throughput (Mb/s)\" offset 1,0,0\nset y2tics border\n"
+	print "set yrange [0:1700]"
+	print "set y2range [0:170]"
+        print "set xtics nomirror rotate"
+        print "set ytics nomirror"
+	print "set bmargin 14"
+	print "set key " key
+        print "set size 1,1.5"
+        print "set style line 1 lw 6 lt 1"
+
+	print "set style line 1 lw 6 lt 7 dt 1 lc rgb '0xfccf03'"
+	# Green for typical set up
+	print "set style line 2 lw 2 lt 7 ps .5 dt 1 lc rgb '0xb1d190'"
+	print "set style line 3 lw 2 lt 4 ps .3 dt 3 lc rgb '0xb1d190'"
+	# Darker green for SMP
+	print "set style line 4 lw 2 lt 7 ps .5 dt 1 lc rgb '0x629e44'"
+	print "set style line 5 lw 2 lt 4 ps .3 dt 3 lc rgb '0x629e44'"
+    # Darker green again for SMP two cores
+    print "set style line 6 lw 2 lt 7 ps .5 dt 1 lc rgb '0x005c00'"
+    print "set style line 7 lw 2 lt 4 ps .3 dt 3 lc rgb '0x005c00'"
+    # Blue for linux
+	print "set style line 8 lw 2 lt 7 ps .5 dt 1 lc rgb '0x77b4e0'"
+	print "set style line 9 lw 2 lt 4 ps .3 dt 3 lc rgb '0x77b4e0'"
+
+	print "set style line 13 lw 2 lt 6"
+	print "set style line 14 lw 2 lt 8"
+	print "set term postscript eps enhanced color size 3.5,1.5"
+	print "set output " sprintf("\"%s\"", filename)
+
+	inter = ""
+	plotcmd = "plot "
+	ls++
+}
+
+$1 ~ /#/ { next }
+
+NF == 11 || NF == 10 || NF == 9 {
+	if (fname() != curfile) {
+	    if (curfile)
+		plot();
+	    curfile = fname();
+	    delete cpucount
+	    delete count
+	}
+
+# Measure in Mbs not kpackets per second
+#	bitsps = $2/1000
+	pktsz = $4 * 8 # bits
+#	pps = bitsps / pktsz
+	pps = $2/1000000
+#	load = $3 / pktsz /1000
+	load = int($3 / 1000000)
+    latency = $9
+
+	if (NF == 10) {
+	   percentcpu = $10
+	   cpu[load] += percentcpu
+	   cpusqr[load] += percentcpu * percentcpu
+	   cpucount[load] = cpucount[load] + 1
+	}
+
+	if (NF == 11) {
+	    percentcpu = 1 * ($11 - $10) * 100 / $11
+	    cpu[load] += percentcpu
+	    cpusqr[load] += percentcpu * percentcpu
+	    cpucount[load] = cpucount[load] + 1
+	}
+	bps[load] += pps
+	bpssqr[load] += pps*pps
+	count[load] = count[load] + 1
+	next
+    }
+
+END {
+	if (curfile == "")
+		curfile = fname()
+	plot();
+	print plotcmd
+	print pointset
+}
+' "${@:2}" | tee multicore.gnuplot | gnuplot
+

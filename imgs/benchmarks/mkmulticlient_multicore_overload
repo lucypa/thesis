@@ -32,7 +32,7 @@ function fname()
 	else if (f ~ /clientD/)
        f = "Client D"
 	else if (f ~/4_client_multicore/)
-	   f = "Totals"
+	   f = "Total"
     return f
 }
 
@@ -51,7 +51,7 @@ function plot()
 	    if (!(x in cpucount)) {
 		cpucount[x] = 1;
 	    }
-		if (curfile == "Totals") {
+		if (curfile == "Total") {
 	    	points[i++] = sprintf("%06d",x) " " bps[x]/count[x] " " stddev(bpssqr[x], bps[x], count[x]) " " cpu[x]/cpucount[x] " " stddev(cpusqr[x], cpu[x], cpucount[x])
 		} else {
 			points[i++] = sprintf("%06d",x) " " bps[x]/count[x] " " stddev(bpssqr[x], bps[x], count[x]) " " cpu[x]/cpucount[x] " " stddev(cpusqr[x], cpu[x], cpucount[x])
@@ -60,7 +60,7 @@ function plot()
 	if (i == 1) {
 	    return
         }
-	if (curfile == "Totals") {
+	if (curfile == "Total") {
 		plotcmd = plotcmd inter " \"-\" using 1:2:3 axes x1y1 title \"" curfile " Xput\"  with xerrorlines ls " ls++ ", \"-\" using 1:4:5 axes x1y2 title \"CPU\" with xerrorlines ls " ls++
 	} else {
 		plotcmd = plotcmd inter " \"-\" using 1:2:3 axes x1y1 title \"" curfile " Xput\"  with xerrorlines ls " ls++
@@ -70,7 +70,7 @@ function plot()
 	for (x = 1; x < i; x++)
 		pointset = pointset "\n"  points[x];
 	pointset = pointset "\ne"
-	if (curfile == "Totals") {
+	if (curfile == "Total") {
 		for (x = 0; x < i; x++)
 			pointset = pointset "\n"  points[x];
 		pointset = pointset "\ne"
@@ -97,8 +97,8 @@ BEGIN {
 	printf "set x2label \"Total Load (Mb/s)\" offset 0,-1,0\nset y2label \"CPU Utilization (%)\" offset -1,0,0\nset xlabel \"Load (Mb/s)\" offset 0,0.5,0\nset ylabel \"Throughput (Mb/s)\" offset 1,0,0\nset y2tics border\n"
 	print "set yrange [0:1000]"
 	print "set y2range [0:400]"
-	print "set xrange [0:250]"
-	print "set x2range [0:1000]"
+	print "set xrange [50:250]"
+	print "set x2range [200:1000]"
         print "set xtics nomirror rotate"
         print "set ytics nomirror"
 		print "set x2tics nomirror rotate border"
@@ -121,8 +121,8 @@ BEGIN {
     # Yellow for client 3
 	print "set style line 5 lw 2 lt 7 ps .5 dt 1 lc rgb '0xfccf03'"
     # Black for totals
-	print "set style line 6 lw 2 lt 7 ps .5 dt 1 lc rgb '0x000000'"
-	print "set style line 7 lw 2 lt 4 ps .3 dt 3 lc rgb '0x000000'"
+	print "set style line 6 lw 2 lt 7 ps .5 dt 1 lc rgb '0xba34eb'"
+	print "set style line 7 lw 2 lt 4 ps .3 dt 3 lc rgb '0xba34eb'"
 
 	print "set term postscript eps enhanced color size 2.5,1.5"
 	print "set output " sprintf("\"%s\"", filename)

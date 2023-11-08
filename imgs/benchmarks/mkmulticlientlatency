@@ -79,8 +79,9 @@ BEGIN {
         ltyp[7] = 6
         ltyp[8] = 8
 	printf "set y2label \"CPU Utilization (%)\" offset -2,0,0\nset xlabel \"Load (Mb/s)\" offset 0,0.7,0\nset ylabel \"Median RTT (us)\" offset 1,0,0\nset y2tics border\n"
-	print "set yrange [0:10000]"
+	print "set yrange [0:2000]"
 	print "set y2range [0:100]"
+	print "set xrange [100:500]"
         print "set xtics nomirror rotate"
         print "set ytics nomirror"
 	print "set bmargin 7.5"

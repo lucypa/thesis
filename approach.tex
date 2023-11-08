@@ -14,9 +14,8 @@ of this thesis, keeping each component simple will aid any future verification e
 \item \textbf{Swappable policy}: Any policy enforced by the framework should be swappable for another policy for different use cases.
 This enables the framework to be flexible and support different use cases while keeping the implementation simple.
 \item \textbf{Secure}: The framework should be secure by taking advantage of the security properties provided by seL4. seL4 guarantees
-complete isolation of user-level components, and its capability system provides fine grained access control. This motivates the framework to apply
-the principle of least authority: components \emph{only} have the minimum capabilities required to perform their job. Clients must not be able
-to interfere with one another. 
+complete isolation of user-level components, and its capability system provides fine grained access control. Untrusted clients must not be able
+to interfere with one another, nor any of the trusted shared components such as the multiplexers. 
 \item \textbf{Performance}: The solution should be performance competitive with the current prototype (see \autoref{ch:sddf}),
 as well as with other existing I/O frameworks (see \autoref{ch:related_work}).
 \end{itemize}
@@ -114,12 +113,11 @@ following variables to experiment with:
 \end{itemize}
 
 \subsection{Support multicore systems}\label{s:multicore}
-The sDDF is implemented on top of seL4CP, which already supports multicore systems, so there are minimal changes required
+The sDDF is implemented on top of the seL4 microkit, which already supports multicore systems, so there are minimal changes required
 to achieve this. As the transport layer is lock-free and system calls are kept to a minimum, the framework itself 
 \emph{should} be capable of exploiting the parallelism of multicore hardware, by pinning components each to their 
-own core. However, if there are not enough cores available, we require a policy to determine how components are distributed
-across cores. For the prototype, a simple user level CPU utilisation analysis should reveal the most appropriate combinations.
-This is achievable through seL4's benchmarking library.\\
+own core. However, if there are not enough cores available, it becomes system policy to determine how components are distributed
+across cores which will largely depend on use case.\\
 Furthermore, it is possible to split the driver into two separate components. One component would be responsible for
 handling client initiated events (predominantly transmit requests), while the other component would react to 
 hardware events. This separation has the potential to achieve more performance on a multicore system as

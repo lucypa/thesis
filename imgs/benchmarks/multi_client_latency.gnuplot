@@ -2,8 +2,9 @@ set y2label "CPU Utilization (%)" offset -2,0,0
 set xlabel "Load (Mb/s)" offset 0,0.7,0
 set ylabel "Median RTT (us)" offset 1,0,0
 set y2tics border
-set yrange [0:10000]
+set yrange [0:2000]
 set y2range [0:100]
+set xrange [100:500]
 set xtics nomirror rotate
 set ytics nomirror
 set bmargin 7.5
@@ -19,32 +20,32 @@ set style line 6 lw 2 lt 7 dt 3 lc rgb 0x00c000
 set style line 7 lw 2 lt 6
 set style line 8 lw 2 lt 8
 set term postscript eps enhanced color size 2.5,1.5
-set output "AgtB_RxU32_latency.eps"
+set output "Tx_Priority_latency.eps"
 plot  "-" using 1:2:3 axes x1y1 title "Client A RTT"  with xerrorlines ls 2, "-" using 1:4:5 axes x1y2 title "CPU" with xerrorlines ls 3,  "-" using 1:2:3 axes x1y1 title "Client B RTT"  with xerrorlines ls 4, "-" using 1:4:5 axes x1y2 title "CPU" with xerrorlines ls 5
 
-000099 528 0 25.8577 0
-000199 583 0 42.4514 0
-000300 844 0 57.6358 0
-000400 954 0 72.0259 0
-000499 1492 0 82.8571 0
+000099 558 0 58.845 0
+000199 673 0 76.855 0
+000300 927 0 95.91 0
+000399 926 0 111.337 0
+000499 1480 0 126.627 0
 e
 
-000099 528 0 25.8577 0
-000199 583 0 42.4514 0
-000300 844 0 57.6358 0
-000400 954 0 72.0259 0
-000499 1492 0 82.8571 0
+000099 558 0 58.845 0
+000199 673 0 76.855 0
+000300 927 0 95.91 0
+000399 926 0 111.337 0
+000499 1480 0 126.627 0
 e
-000100 551 0 25.8577 0
-000199 705 0 42.4514 0
-000299 1054 0 57.6358 0
-000400 1143 0 72.0259 0
-000499 1590 0 82.8571 0
+000100 557 0 58.845 0
+000199 775 0 76.855 0
+000300 1012 0 95.91 0
+000400 1095 0 111.337 0
+000499 1578 0 126.627 0
 e
 
-000100 551 0 25.8577 0
-000199 705 0 42.4514 0
-000299 1054 0 57.6358 0
-000400 1143 0 72.0259 0
-000499 1590 0 82.8571 0
+000100 557 0 58.845 0
+000199 775 0 76.855 0
+000300 1012 0 95.91 0
+000400 1095 0 111.337 0
+000499 1578 0 126.627 0
 e

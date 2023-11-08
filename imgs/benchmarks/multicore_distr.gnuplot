@@ -12,16 +12,16 @@ set key font ",10.5"
 set size 1,1.3
 set style line 1 lw 6 lt 1
 set style line 1 lw 6 lt 7 dt 1 lc rgb 0xfccf03
-set style line 2 lw 4 lt 7 ps .5 dt 1 lc rgb 0xfccf03
-set style line 3 lw 4 lt 4 ps .3 dt 3 lc rgb 0xfccf03
-set style line 4 lw 4 lt 7 ps .5 dt 1 lc rgb 0xd49fc0
-set style line 5 lw 4 lt 4 ps .3 dt 3 lc rgb 0xd49fc0
-set style line 6 lw 4 lt 7 ps .5 dt 1 lc rgb 0xb1d190
-set style line 7 lw 4 lt 4 ps .3 dt 3 lc rgb 0xb1d190
-set style line 8 lw 4 lt 7 ps .5 dt 1 lc rgb 0xc98189
-set style line 9 lw 4 lt 4 ps .3 dt 3 lc rgb 0xc98189
-set style line 10 lw 4 lt 7 ps .5 dt 1 lc rgb 0x77b4e0
-set style line 11 lw 4 lt 4 ps .3 dt 3 lc rgb 0x77b4e0
+set style line 2 lw 2 lt 7 ps .5 dt 1 lc rgb 0xfccf03
+set style line 3 lw 2 lt 4 ps .3 dt 3 lc rgb 0xfccf03
+set style line 4 lw 2 lt 7 ps .5 dt 1 lc rgb 0xd49fc0
+set style line 5 lw 2 lt 4 ps .3 dt 3 lc rgb 0xd49fc0
+set style line 6 lw 2 lt 7 ps .5 dt 1 lc rgb 0xb1d190
+set style line 7 lw 2 lt 4 ps .3 dt 3 lc rgb 0xb1d190
+set style line 8 lw 2 lt 7 ps .5 dt 1 lc rgb 0xc98189
+set style line 9 lw 2 lt 4 ps .3 dt 3 lc rgb 0xc98189
+set style line 10 lw 2 lt 7 ps .5 dt 1 lc rgb 0x77b4e0
+set style line 11 lw 2 lt 4 ps .3 dt 3 lc rgb 0x77b4e0
 set style line 13 lw 2 lt 6
 set style line 14 lw 2 lt 8
 set term postscript eps enhanced color size 2.5,1.5

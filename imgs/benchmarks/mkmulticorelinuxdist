@@ -97,20 +97,20 @@ BEGIN {
 
 	print "set style line 1 lw 6 lt 7 dt 1 lc rgb '0xfccf03'"
 	# Yellow for driver
-	print "set style line 2 lw 4 lt 7 ps .5 dt 1 lc rgb '0xfccf03'"
-	print "set style line 3 lw 4 lt 4 ps .3 dt 3 lc rgb '0xfccf03'"
+	print "set style line 2 lw 2 lt 7 ps .5 dt 1 lc rgb '0xfccf03'"
+	print "set style line 3 lw 2 lt 4 ps .3 dt 3 lc rgb '0xfccf03'"
 	# Purple for rx mux
-	print "set style line 4 lw 4 lt 7 ps .5 dt 1 lc rgb '0xd49fc0'"
-	print "set style line 5 lw 4 lt 4 ps .3 dt 3 lc rgb '0xd49fc0'"
+	print "set style line 4 lw 2 lt 7 ps .5 dt 1 lc rgb '0xd49fc0'"
+	print "set style line 5 lw 2 lt 4 ps .3 dt 3 lc rgb '0xd49fc0'"
     # Green for copier
-    print "set style line 6 lw 4 lt 7 ps .5 dt 1 lc rgb '0xb1d190'"
-    print "set style line 7 lw 4 lt 4 ps .3 dt 3 lc rgb '0xb1d190'"
+    print "set style line 6 lw 2 lt 7 ps .5 dt 1 lc rgb '0xb1d190'"
+    print "set style line 7 lw 2 lt 4 ps .3 dt 3 lc rgb '0xb1d190'"
     # Red for client
-	print "set style line 8 lw 4 lt 7 ps .5 dt 1 lc rgb '0xc98189'"
-	print "set style line 9 lw 4 lt 4 ps .3 dt 3 lc rgb '0xc98189'"
+	print "set style line 8 lw 2 lt 7 ps .5 dt 1 lc rgb '0xc98189'"
+	print "set style line 9 lw 2 lt 4 ps .3 dt 3 lc rgb '0xc98189'"
     # Blue for Linux 
-	print "set style line 10 lw 4 lt 7 ps .5 dt 1 lc rgb '0x77b4e0'"
-	print "set style line 11 lw 4 lt 4 ps .3 dt 3 lc rgb '0x77b4e0'"
+	print "set style line 10 lw 2 lt 7 ps .5 dt 1 lc rgb '0x77b4e0'"
+	print "set style line 11 lw 2 lt 4 ps .3 dt 3 lc rgb '0x77b4e0'"
 
 	print "set style line 13 lw 2 lt 6"
 	print "set style line 14 lw 2 lt 8"

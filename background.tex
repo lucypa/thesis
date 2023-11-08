@@ -99,10 +99,11 @@ for memory consistency. These system calls, which aren't typically required in a
 system, can quickly add up. 
 
 % Core Platform
-\section{The seL4 Core Platform}
-The seL4 Core Platform (seL4CP) is an operating system framework on seL4 with minimal abstractions over seL4 low level
+\section{The seL4 microkit}
+The seL4 microkit, formerly known as the seL4 Core Platform,
+is an operating system framework on seL4 with minimal abstractions over seL4 low level
 objects \cite{Heiser_PCVL_22}. It aims to ease the development process of applications on seL4 by abstracting over
-architecture specific details as well as seL4's low level API. seL4CP trades generality for simplicity and 
+architecture specific details as well as seL4's low level API. Microkit trades generality for simplicity and 
 restricts systems to a predominantly static architecture. This means components are fixed at build time. 
 The abstractions are:
 \begin{enumerate}
@@ -113,8 +114,8 @@ The abstractions are:
     \item \textbf{Protected Procedure Call (PPC)}: synchronous RPC between PDs. 
 \end{enumerate}
 
-seL4CP promotes the correct use of seL4 by employing an event driven driven programming model for PDs. Events are triggered by
-either notifications or PPCs sent along a CC. seL4CP also restricts the use of seL4's IPC primitives to remote procedure calls,
+Microkit promotes the correct use of seL4 by employing an event driven driven programming model for PDs. Events are triggered by
+either notifications or PPCs sent along a CC. Microkit also restricts the use of seL4's IPC primitives to remote procedure calls,
 which is only possible if the callee has strictly higher priority than the caller. This prevents PDs from either directly or 
-indirectly calling themselves. Finally, while seL4CP predominantly only supports static systems, there is 
+indirectly calling themselves. Finally, while microkit predominantly only supports static systems, there is 
 some supported dynamism which enables the re-initialising of PDs and dynamically loading code into PDs \cite{Heiser_PCVL_22}.

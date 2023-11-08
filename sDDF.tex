@@ -257,7 +257,7 @@ of high traffic on the receive path, we can limit the size of the receive queue 
 the size of the receive queues in the control regions.
 The remaining priority ordering is as follows:
 
-\centerline{Clients and per client copiers \(<\) Rx Mux \(<\) Tx Mux \(<\) Driver.}
+\centerline{Driver \(>\) Tx Mux \(>\) Rx Mux \(>\) Clients and per client copiers.}
 
 This priority ordering enables components on the receive path to process as many packets as possible and
 thus batch system calls. Due to the bounded size of the queues, only a limited number of packets 
