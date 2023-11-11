@@ -106,7 +106,7 @@ BEGIN {
 
 	# Red for client 0
 	print "set style line 1 lw 6 lt 7 dt 1 lc rgb '0xff0000'"
-	print "set style line 2 lw 2 lt 7 ps .5 dt 1 lc rgb '0xff0000'"
+	print "set style line 2 lw 4 lt 7 ps .5 dt 1 lc rgb '0xff0000'"
 	# Blue for client 1
 	print "set style line 3 lw 2 lt 7 ps .5 dt 1 lc rgb '0x0080ff'"
 	# Green for totals

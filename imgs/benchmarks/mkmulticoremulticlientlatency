@@ -23,14 +23,10 @@ gawk -v "key=${KEY}" -v "filename=${FILENAME}" -F ',' '
 function fname()
 {
     f = FILENAME
-    if (f ~ /5-comp/)
-        f = "Single Core"
-    else if (f ~ /SMP_single_core/)
-       f = "SMP"
-    else if (f ~ /SMP_two_cores/)
-       f = "SMP Two Cores"
-    else if (f ~ /linux/)
-       f = "Linux"
+    if (f ~ /clientA/)
+        f = "Client A"
+    else if (f ~ /clientB/)
+       f = "Client B"
     return f
 }
 
@@ -54,13 +50,10 @@ function plot()
 	if (i == 1) {
 	    return
         }
-	plotcmd = plotcmd inter " \"-\" using 1:2:3 axes x1y1 title \"" curfile " XPUT\"  with xerrorlines ls " ls++ ", \"-\" using 1:4:5 axes x1y2 title \"CPU\" with xerrorlines ls " ls++
+	plotcmd = plotcmd inter " \"-\" using 1:2:3 axes x1y1 title \"" curfile " RTT\"  with xerrorlines ls " ls++
 	inter = ", "
 	asort(points)
 	for (x = 1; x < i; x++)
-		pointset = pointset "\n"  points[x];
-	pointset = pointset "\ne"
-	for (x = 0; x < i; x++)
 		pointset = pointset "\n"  points[x];
 	pointset = pointset "\ne"
 	delete cpu
@@ -82,33 +75,24 @@ BEGIN {
         ltyp[6] = 3
         ltyp[7] = 6
         ltyp[8] = 8
-	printf "set y2label \"CPU Utilization (%)\" offset -1,0,0\nset xlabel \"Load (Mb/s)\" offset 0,0.7,0\nset ylabel \"Throughput (Mb/s)\" offset 1,0,0\nset y2tics border\n"
-	print "set yrange [0:1700]"
-	print "set y2range [0:170]"
+	printf "set xlabel \"Load (Mb/s)\" offset 0,0.7,0\nset ylabel \"Median RTT (us)\" offset 1,0,0\n"
+	print "set yrange [0:2000]"
+	print "set xrange [100:500]"
         print "set xtics nomirror rotate"
         print "set ytics nomirror"
-		print "set bmargin 14"
+	print "set bmargin 7.5"
 	print "set key " key
-        print "set size 1,1.5"
+        print "set size 1,1.4"
         print "set style line 1 lw 6 lt 1"
 
-	print "set style line 1 lw 6 lt 7 dt 1 lc rgb '0xfccf03'"
-	# Green for typical set up
-	print "set style line 2 lw 5 lt 7 ps .5 dt 1 lc rgb '0xb1d190'"
-	print "set style line 3 lw 5 lt 4 ps .3 dt 3 lc rgb '0xb1d190'"
-	# Darker green for SMP
-	print "set style line 4 lw 4 lt 7 ps .5 dt 1 lc rgb '0x629e44'"
-	print "set style line 5 lw 4 lt 4 ps .3 dt 3 lc rgb '0x629e44'"
-    # Darker green again for SMP two cores
-    print "set style line 6 lw 2 lt 7 ps .5 dt 1 lc rgb '0x005c00'"
-    print "set style line 7 lw 2 lt 4 ps .3 dt 3 lc rgb '0x005c00'"
-    # Blue for linux
-	print "set style line 8 lw 2 lt 7 ps .5 dt 1 lc rgb '0x77b4e0'"
-	print "set style line 9 lw 2 lt 4 ps .3 dt 3 lc rgb '0x77b4e0'"
-
-	print "set style line 13 lw 2 lt 6"
-	print "set style line 14 lw 2 lt 8"
-	print "set term postscript eps enhanced color size 2.5,2"
+	# Red for client 0
+	print "set style line 1 lw 6 lt 7 dt 1 lc rgb '0xff0000'"
+	print "set style line 2 lw 4 lt 7 ps .5 dt 1 lc rgb '0xff0000'"
+	# Blue for client 1
+	print "set style line 3 lw 2 lt 7 ps .5 dt 1 lc rgb '0x0080ff'"
+	print "set style line 7 lw 2 lt 6"
+	print "set style line 8 lw 2 lt 8"
+	print "set term postscript eps enhanced color size 2,1.2"
 	print "set output " sprintf("\"%s\"", filename)
 
 	inter = ""
@@ -144,13 +128,13 @@ NF == 11 || NF == 10 || NF == 9 {
 	}
 
 	if (NF == 11) {
-	    percentcpu = 1 * ($11 - $10) * 100 / $11
+	    percentcpu = ($11 - $10) * 100 / $11
 	    cpu[load] += percentcpu
 	    cpusqr[load] += percentcpu * percentcpu
 	    cpucount[load] = cpucount[load] + 1
 	}
-	bps[load] += pps
-	bpssqr[load] += pps*pps
+	bps[load] += latency
+	bpssqr[load] += latency*latency
 	count[load] = count[load] + 1
 	next
     }
@@ -162,5 +146,5 @@ END {
 	print plotcmd
 	print pointset
 }
-' "${@:2}" | tee multicore.gnuplot | gnuplot
+' "${@:2}" | tee multi_client_latency.gnuplot | gnuplot
 

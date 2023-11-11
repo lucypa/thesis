@@ -10,6 +10,8 @@ and the system comprises of the following PDs:
     \item (only as specified) Client Side Ethernet Driver
     \item Rx Mux
     \item Tx Mux: implementation specified in each benchmark
+    \item ARP Component
+    \item Timer Driver
     \item 1 Rx Copy Component per Client application
     \item 1 or more Client applications as specified in each benchmark. 
         The clients use lwIP \cite{Dunkels_01} as an IP stack library for network packet processing. 
@@ -43,7 +45,7 @@ throughput of the echo server.
 
 \begin{figure}[h]
     \centering
-    \includegraphics[width=\textwidth]{asym.pdf}
+    \includegraphics[width=0.8\textwidth]{asym.pdf}
     \caption{Networking Performance of Different Client Applications}
     \label{f:asym}
 \end{figure}
@@ -64,9 +66,10 @@ Each system comprises of an ethernet driver, Rx Mux, Tx Mux, 2 copy components (
 and two simple echo servers; Client A and Client B. As these systems run on single core, a round robin or priority-based
 policy in the Tx Mux would not make sense as the multiplexer runs at higher priority than both the clients and thus
 will be invoked as soon as it is signalled by either client. We instead first evaluate a simple Tx Mux that only 
-responds to the client that signalled it, and enforce policy through our system design. 
+responds to the client that signalled it, and enforce policy through our system design. We also evaluate our
+bandwidth limited multiplexer to 
 
-\noindent\begin{figure}[htbp]
+\noindent\begin{figure}[h]
     \centering
 	\begin{multicols}{2}
 		\begin{subfigure}[b]{0.45\textwidth}
@@ -99,11 +102,11 @@ We now incorporate different priorities to our system and measure the impact thi
 achieved performance. We reduce both client B and its copy component to lower priority than client A. 
 Thus the priorities are ordered as follows:\\ 
 
-\centerline{Driver \(>\) Tx Mux  \(>\) Rx Mux \(>\) Copier of client A \(>\) Client A \(>\) Copier of client B \(>\) Client B.}
+\centerline{Driver \(>\) Tx Mux  \(>\) Rx Mux \(>\) ARP \(=\) Copier of client A \(>\) Client A \(>\) Copier of client B \(>\) Client B.}
 
 We set all queue sizes to be equal. 
 
-\noindent\begin{figure}[htbp]
+\noindent\begin{figure}[h]
     \centering
 	\begin{multicols}{2}
 		\begin{subfigure}[b]{0.45\textwidth}
@@ -163,14 +166,14 @@ to 32, to prevent this and ensure there are adequate Rx buffers available to hig
 system still becomes overloaded at 400Mbps. However, client A is now able to achieve its requested load as client Bs available
 Rx throughput is limited. \\
 
-The results all indicate that limiting a clients queues limits its available throughput. We can use this property to implement 
+The results all indicate that limiting a clients queues will limit its available throughput. We can use this property to implement 
 a bandwidth-limited policy in the system. We now limit the RxU queue between the Mux and Copier of client B to just 16, and also
-limit the TxU queue between the Mux and client B. Client B and its Copier still run at lower priority than Client A, and both
+limit the TxU queue between the Mux and client B to 16. Client B and its Copier still run at lower priority than Client A, and both
 clients are just simple echo servers (with no additional overload).
 
 \begin{figure}[h]
     \centering
-    \includegraphics[width=7cm]{AgtB_RxTxU16.eps}
+    \includegraphics[width=8cm]{AgtB_RxTxU16.eps}
     \caption{Networking Performance of Two Echo Servers with Limited Queues to Client B}
     \label{f:AgtB_RxTxU16}
 \end{figure}
@@ -182,108 +185,203 @@ the limited client.
 \subsection{Bandwidth-limited Tx Multiplexer}
 
 We can also limit clients available bandwidth using policy in the Tx Mux. We evaluate \autoref{s:bandwidth} with two echo servers,
-running at equal priority and with equal queue sizes, and limit client B to just 100Mbps in the Tx Mux. 
+running at equal priority and with equal queue sizes, and limit client B to just 100Mbps in the Tx Mux. Client A is not limited.
 
 \begin{figure}[h]
     \centering
-    \includegraphics[width=7cm]{Tx_Limited.eps}
-    \caption{Networking Performance of Two Echo Servers with Limited Bandwidth}
+    \includegraphics[width=8cm]{Tx_Limited.eps}
+    \caption{Networking Performance of Two Echo Servers with Bandwidth-Limited Multiplexer}
     \label{f:Tx_Limited}
 \end{figure}
 
-\autoref{f:Tx_Limited} shows the achieved throughput for both clients and the total CPU load of the system. As expected, client A which
-does not have a bandwidth limit, achieves its requested load and client B is limited to just 100Mbps. 
+\autoref{f:Tx_Limited} shows the achieved throughput for both clients and the total CPU load of the system. As expected, 
+client A which does not have a bandwidth limit, achieves its requested load and client B is limited to just 100Mbps. Furthermore, 
+the total CPU load for the total achieved throughput (~600Mbps) is only 62\%. Compared to the CPU load of the same 
+achieved throughput without any bandwidth limiting (see \autoref{f:AB}) of 52\%, this is less than a 20\% increase. While we
+expect there to be some overhead as the multiplexer must communicate regularly with a timer driver, thus incurring adittional
+context switches, some of this overhead can be reduced with an optimised implementation 
+as outlined in \autoref{s:bandwidth}. This is left for future work.
 
-\section{Multicore}
+In order to properly evaluate our round robin and priority-based multiplexer designs, we must first evaluate how our
+design scales to multicore. From there, we can design systems where the clients run on separate cores and will be scheduled irrespective
+of one another, thus requiring further policy in the multiplexer.
 
-% Non, single core SMP vs Two Cores. 
-% Comparisson against linux
+\section{Multi-core}
+
+Scaling to multi-core will incur overhead from two separate causes. Firstly, seL4 configured with symmetric multiprocessing (SMP) increases
+the cost of every kernel invocation. This is not only due to the cost of acquiring the kernel lock, but also because the SMP kernel is
+less optimised and fastpaths do not apply. Secondly, inter-core communication costs significantly more than intra-core due to the addition of 
+inter-processor interrupts (IPI) and cache-line bouncing. While detailed analysis of these overheads is left for future work, in order to properly
+analyse how our system performs on multi-core configurations, we first establish a baseline of these costs. We first evaluate two separate configurations
+using the SMP kernel: pinning every component to a single core and splitting the load across two cores (out of an available 4). 
+We compare these to our baseline without the SMP kernel. Each system is comprised of 5 PDs: an ethernet driver, RX Mux, 
+TX Mux, Copy Component, Client running a simple echo server. Our two core system pins the driver and Tx Mux to one core, and 
+the Rx Mux, Copier and Client pinned to the other. We also compare our seL4 based systems against a typical Linux set up, whereby
+the user-space echo server application is pinned to one core, and we allow the linux scheduler to schedule the remaining 3 cores. \\ 
+
 \begin{figure}[h]
     \centering
-    \includegraphics[width=\textwidth]{multicore.pdf}
-    \caption{Networking Performance comparisson}
+    \includegraphics[width=0.9\textwidth]{multicore.pdf}
+    \caption{Networking Performance Comparisson of Multicore Systems}
     \label{f:multicore}
 \end{figure}
 
+\autoref{f:multicore} shows the achieved throughput against the CPU utilisation for our 3 different seL4-based systems and Linux. 
+As expected, each of the 3 seL4 based systems achieve wire speed (the paler, solid green lines are directly behind the dark green line)
+whereas the Linux system maxes out at just 800Mbps. All seL4 based systems also outperform the Linux system, which utilises more than
+1.6 cores for 800Mbps. Further investigation into the Linux system reveals the core running the echo server is maxed out at 
+this point, and hence why the system can't achieve higher throughput. 
+However, the total CPU load on each of the seL4 based systems differs substantially. 
+The difference between the single core CPU load (dotted, pale green line) and the single core SMP CPU load (dotted mid-green line) 
+outlines the overhead of using the SMP kernel. To achieve wire speed, the normal kernel configuration utilizes 82\% of the CPU, whereas
+the SMP kernel configuration utilizes 92\% of the CPU; about 12\% overhead. While this is substantially higher than expected given
+there is no inter-core communication for either of these configurations, detailed
+exploration of these overheads is left for future work. 
+Comparing the single core SMP CPU load against the two core SMP CPU load (dotted dark green line) outlines the overheads introduced by
+inter-core communication between our 5 PDs; just over 4\% at wire speed. Note that not all system calls will introduce IPIs in
+this configuration, as, for example, the Copy component only communicates intra-core with the Rx Mux and Client. \\
 
-
-% muxes 
-\subsection{Round Robin Tx Multiplexer}
-
-\begin{figure}[h]
-    \centering
-    \includegraphics[width=10cm]{Tx_Round_Robin.eps}
-    \caption{Networking Performance of Two Echo Servers with Round Robin Multiplexer}
-    \label{f:round_robin_mux}
-\end{figure}
-
-\subsection{Priority-based Tx Multiplexer}
-
-\begin{figure}[h]
-    \centering
-    \includegraphics[width=10cm]{Tx_Priority.eps}
-    \caption{Networking Performance of Two Echo Servers with Priority-based Multiplexer}
-    \label{f:priority_mux}
-\end{figure}
+Ultimately, distributing PDs across different cores will incur different overheads. We explore these overheads with another benchmark
+comparing 4 separate configurations. Each different configuration isolates one PD on one core, and runs all other PDs on another core. 
+We test these configurations with the same echo server benchmark with the same 5 PDs as our previous multi-core benchmark.
 
 \begin{figure}[h]
     \centering
-    \includegraphics[width=10cm]{Tx_Priority_latency.eps}
-    \caption{Networking Latencies of Two Echo Servers at with Priority-based Multiplexer}
-    \label{f:priority_latency}
-\end{figure}
-
-\subsection{Core allocation}
-
-\begin{figure}[h]
-    \centering
-    \includegraphics[width=10cm]{multicore_distr.eps}
+    \includegraphics[width=9cm]{multicore_distr.eps}
     \caption{CPU Utilisation with Select Components Isolated on a Separate Core}
     \label{f:multicore_distr}
 \end{figure}
+
+\autoref{f:multicore_distr} shows the results when isolating the driver, Rx Mux, Copier and Client. The yellow lines show the throughput
+and CPU utilisation when the driver is pinned to a separate core. Likewise, the purple for the Rx Mux, the green for the Copier and pink for
+the Client. As expected, each different configuration achieves wire speed but the CPU utilisation of each system differs. Notably, 
+the configuration whereby the driver is isolated incurs the most overhead, followed closely by the configuration isolating the Rx Mux. This is 
+expected due to the higher number of system calls per packet each of these PDs makes and thus these systems will incur more overheads from
+intra-core signalling and lock contention. Overall, the difference in CPU load of each of these systems is only 4\%, indicating that
+components can be arbitrarily distributed across cores. Ultimately, the optimal allocation for a system is use case dependent.\\
+
+Now we have a baseline evaluation for multi-core systems, we can design simple systems with which to evaluate our other transmit multiplexer
+designs. 
+
+\subsection{Round Robin Tx Multiplexer}
+
+A round robin policy in our Tx Multiplexer only makes sense when clients are running on separate cores. This is because the Tx Mux runs at higher
+priority than the clients, and will be invoked as soon as a client has signalled it. If both clients are on the same core, then the Tx Mux will
+be invoked after one client has finished enqueueing packets for transmit, but before the other client has been scheduled. We evaluate our round robin
+Tx Mux on a 2 client multi-core configuration, where each client is pinned to a separate core shared with its respective copy component, and another
+core hosts the Driver, Rx Mux, ARP Component and Tx Mux. 
+
+\noindent\begin{figure}[h]
+    \centering
+	\begin{multicols}{2}
+		\begin{subfigure}[b]{0.45\textwidth}
+        \centering
+        \includegraphics[width=1.2\textwidth]{Tx_Round_Robin.eps}
+        \caption{Throughput Achieved and CPU Load of Two Echo Servers}
+        \label{f:round_robin_mux}
+    \end{subfigure}\qquad
+    \begin{subfigure}[b]{0.45\textwidth}
+        \vspace{52pt}
+        \centering
+        \includegraphics[width=\textwidth]{Tx_Round_Robin_latency.eps}
+        \vspace{0.5pt}
+        \caption{Median Latencies of Two Echo Servers}
+        \label{f:round_robin_mux_latency}
+    \end{subfigure}
+\end{multicols}
+\caption{Networking Performance of Two Echo Servers with a Round Robin Multiplexer}
+\end{figure}
+
+The total achieved throughput as well as that of each client is shown in \autoref{f:round_robin_mux}. As expected, both clients achieve their 
+requested throughput, with their sum equalling wire speed. Importantly, both clients experience the same networking latencies as shown
+in \autoref{f:round_robin_mux_latency} by their respective median round trip times. This demonstrates our round robin Tx Mux enforces
+fairness between two clients effectively.
+
+\subsection{Priority-based Tx Multiplexer}
+
+We also evaluate our priority-based Tx Mux using the same system design, where we will instead expect a higher priority client to achieve smaller
+latencies. We set up our priority-based Tx Mux implementation to prioritise client A, followed by client B and finally ARP at lowest priority.
+As both clients run on separate cores, their scheduling parameters with respect to one another has no impact and so we allocate them the same
+priority as one another. Likewise with their copy components, which are higher priority than the client. 
+
+\noindent\begin{figure}[h]
+    \centering
+	\begin{multicols}{2}
+		\begin{subfigure}[b]{0.45\textwidth}
+        \centering
+        \includegraphics[width=1.2\textwidth]{Tx_Priority.eps}
+        \caption{Throughput Achieved and CPU Load of Two Echo Servers}
+        \label{f:priority_mux}
+    \end{subfigure}\qquad
+    \begin{subfigure}[b]{0.45\textwidth}
+        \vspace{52pt}
+        \centering
+        \includegraphics[width=\textwidth]{Tx_Priority_latency.eps}
+        \vspace{0.5pt}
+        \caption{Median Latencies of Two Echo Servers}
+        \label{f:priority_latency}
+    \end{subfigure}
+\end{multicols}
+\caption{Networking Performance of Two Echo Servers with a Priority-based Multiplexer}
+\end{figure}
+
+Both clients achieve their requested throughput as shown in \autoref{f:priority_mux} and as expected, client A has lower latencies
+over client B due to the policy implemented in the Tx Mux. Notably, client As latencies are also lower on this system, with a median RTT
+of 1480us at wire speed, when compared to our system with a round robin policy, where client A has a median RTT of 1524us at the same
+throughput. 
+Furthermore, both systems incur similar overheads as indicated by their respective CPU utilisation measurements. 
+
+
+\newpage
 
 \subsection{Two Threaded Driver}
 
 \begin{figure}[h]
     \centering
-    \includegraphics[width=10cm]{2driver_comp.eps}
+    \includegraphics[width=8cm]{2driver_comp.eps}
     \caption{Performance Comparisson of Two Threaded Driver on Multi-core}
     \label{f:2driver_comp}
 \end{figure}
 
 \begin{figure}[h]
     \centering
-    \includegraphics[width=10cm]{multicore_overload.eps}
+    \includegraphics[width=8cm]{multicore_overload.eps}
     \caption{Networking Performance with 4 Clients on Multi-core}
     \label{f:multicore_overload}
 \end{figure}
 
 \begin{figure}[h]
     \centering
-    \includegraphics[width=10cm]{2driver_comp_overload.eps}
+    \includegraphics[width=7cm]{2driver_comp_overload.eps}
     \caption{Performance Comparisson of Two Threaded Driver with 4 Clients on Multi-core}
     \label{f:2driver_comp_overload}
 \end{figure}
 
-\begin{figure}[h]
+
+\noindent\begin{figure}[h]
     \centering
-    \includegraphics[width=10cm]{core_analysis_multicore_overload.eps}
-    \caption{Core Utilisation of 4 Clients on Multi-core}
-    \label{f:core_analysis_mutlicore_overload}
+	\begin{multicols}{2}
+		\begin{subfigure}[b]{0.45\textwidth}
+        \centering
+        \includegraphics[width=1.2\textwidth]{core_analysis_multicore_overload.eps}
+        \caption{Core Utilisation of 4 Clients on Multi-core}
+        \label{f:core_analysis_mutlicore_overload}
+    \end{subfigure}\qquad
+    \begin{subfigure}[b]{0.45\textwidth}
+        \centering
+        \includegraphics[width=1.2\textwidth]{core_analysis_multicore_overload_2driver.eps}
+        \caption{Core Utilisation of Two Threaded Driver with 4 Clients on Multi-core}
+        \label{f:core_analysis_mutlicore_overload_2driver}
+    \end{subfigure}
+\end{multicols}
 \end{figure}
 
-\begin{figure}[h]
-    \centering
-    \includegraphics[width=10cm]{core_analysis_multicore_overload_2driver.eps}
-    \caption{Core Utilisation of Two Threaded Driver with 4 Clients on Multi-core}
-    \label{f:core_analysis_mutlicore_overload_2driver}
-\end{figure}
 
 \section{Transmit Copy Component}
 
 \begin{figure}[h]
     \centering
-    \includegraphics[width=10cm]{tx_copy_overhead.eps}
+    \includegraphics[width=7cm]{tx_copy_overhead.eps}
     \caption{Performance Overhead with Tx Copy Component}
     \label{f:tx_copy_overhead}
 \end{figure}
