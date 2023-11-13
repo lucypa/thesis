@@ -16,9 +16,9 @@ set key outside below
 set size 1,1.6
 set style line 1 lw 6 lt 1
 set style line 1 lw 6 lt 7 dt 1 lc rgb 0x000000
-set style line 2 lw 2 lt 7 ps .5 dt 1 lc rgb 0xff0000
-set style line 3 lw 2 lt 7 ps .5 dt 1 lc rgb 0x0080ff
-set style line 4 lw 2 lt 7 ps .5 dt 1 lc rgb 0x008000
+set style line 2 lw 6 lt 7 ps .5 dt 1 lc rgb 0xff0000
+set style line 3 lw 5 lt 7 ps .5 dt 1 lc rgb 0x0080ff
+set style line 4 lw 3 lt 7 ps .5 dt 1 lc rgb 0x008000
 set style line 5 lw 2 lt 7 ps .5 dt 1 lc rgb 0xfccf03
 set style line 6 lw 2 lt 7 ps .5 dt 1 lc rgb 0xba34eb
 set style line 7 lw 2 lt 4 ps .3 dt 3 lc rgb 0xba34eb

@@ -122,8 +122,7 @@ Furthermore, it is possible to split the driver into two separate components. On
 handling client initiated events (predominantly transmit requests), while the other component would react to 
 hardware events. This separation has the potential to achieve more performance on a multicore system as
 each of these components could run concurrently on separate cores.\\
-Additionally, concurrent execution could likely reveal bugs in the implementation or performance bottlenecks. Thorough 
-analysis of results will be key in identifying this.
+
 
 \subsection{Security Analysis}\label{s:security}
 Component communication in the sDDF relies on shared memory and asynchronous notifications. While asynchronous communication
