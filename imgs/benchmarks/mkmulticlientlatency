@@ -45,12 +45,12 @@ function plot()
 	    if (!(x in cpucount)) {
 		cpucount[x] = 1;
 	    }
-	    points[i++] = sprintf("%06d",x) " " bps[x]/count[x] " " stddev(bpssqr[x], bps[x], count[x]) " " cpu[x]/cpucount[x] " " stddev(cpusqr[x], cpu[x], cpucount[x])
+	    points[i++] = sprintf("%06d",x) " " bps[x]/count[x] " " bpssqr[x]/count[x] " " cpu[x]/cpucount[x] " " stddev(cpusqr[x], cpu[x], cpucount[x])
 	}
 	if (i == 1) {
 	    return
         }
-	plotcmd = plotcmd inter " \"-\" using 1:2:3 axes x1y1 title \"" curfile " RTT\"  with xerrorlines ls " ls++ ", \"-\" using 1:4:5 axes x1y2 title \"CPU\" with xerrorlines ls " ls++
+	plotcmd = plotcmd inter " \"-\" using 1:2:3 axes x1y1 title \"" curfile " RTT\"  with errorlines ls " ls++ ", \"-\" using 1:4:5 axes x1y2 title \"CPU\" with errorlines ls " ls++
 	inter = ", "
 	asort(points)
 	for (x = 1; x < i; x++)
@@ -81,7 +81,7 @@ BEGIN {
 	printf "set y2label \"CPU Utilization (%)\" offset -2,0,0\nset xlabel \"Load (Mb/s)\" offset 0,0.7,0\nset ylabel \"Median RTT (us)\" offset 1,0,0\nset y2tics border\n"
 	print "set yrange [0:2000]"
 	print "set y2range [0:100]"
-	print "set xrange [100:500]"
+	print "set xrange [0:500]"
         print "set xtics nomirror rotate"
         print "set ytics nomirror"
 	print "set bmargin 7.5"
@@ -126,6 +126,7 @@ NF == 11 || NF == 10 || NF == 9 {
 #	load = $3 / pktsz /1000
 	load = int($3 / 1000000)
     latency = $9
+	stdev = $8
 
 	if (NF == 10) {
 	   percentcpu = $10
@@ -141,7 +142,7 @@ NF == 11 || NF == 10 || NF == 9 {
 	    cpucount[load] = cpucount[load] + 1
 	}
 	bps[load] += latency
-	bpssqr[load] += latency*latency
+	bpssqr[load] += stdev
 	count[load] = count[load] + 1
 	next
     }

@@ -15,8 +15,7 @@ sh ./mkmulticlientmulticore Tx_Priority.eps clientA_tx_priority.ipbench clientB_
 sh ./mkmulticlientmulticore Tx_Round_Robin.eps clientA_tx_round_robin.ipbench clientB_tx_round_robin.ipbench tx_round_robin.ipbench
 sh ./mkmulticoremulticlientlatency Tx_Round_Robin_latency.eps clientA_tx_round_robin.ipbench clientB_tx_round_robin.ipbench
 sh ./mkmulticoremulticlientlatency Tx_Priority_latency.eps clientA_tx_priority.ipbench clientB_tx_priority.ipbench
-sh ./mkmulticoredistr multicore_distr.eps driver_multicore_dist.ipbench rx_mux_multicore_dist.ipbench copier_multicore_dist.ipbench client_multicore_dist.ipbench
-sh ./mkmulticorelinuxdist multicore_linux_distr.eps driver_multicore_dist.ipbench rx_mux_multicore_dist.ipbench copier_multicore_dist.ipbench client_multicore_dist.ipbench linux_multicore.ipbench
+sh ./mkmulticoredistr multicore_distr.eps client_multicore_dist.ipbench rx_mux_multicore_dist.ipbench copier_multicore_dist.ipbench driver_multicore_dist.ipbench 
 sh ./mkmulticlient_multicore_overload multicore_overload.eps clientA_multicore_overload.ipbench clientB_multicore_overload.ipbench clientC_multicore_overload.ipbench clientD_multicore_overload.ipbench 4_client_multicore.ipbench
 sh ./mkmulticlient_multicore_overload multicore_overload_2driver.eps clientA_multicore_overload_2driver.ipbench clientB_multicore_overload_2driver.ipbench clientC_multicore_overload_2driver.ipbench clientD_multicore_overload_2driver.ipbench 4_client_multicore_2driver.ipbench
 gnuplot 2driver_comp.gnuplot
@@ -25,4 +24,3 @@ gnuplot core_analysis_multi_overload_2driver.gnuplot
 gnuplot core_analysis_multi_overload.gnuplot
 gnuplot tx_copy_overhead.gnuplot
 sh ./mkmulticore multicore.eps 5-comp.ipbench SMP_single_core.ipbench SMP_two_cores.ipbench linux_multicore.ipbench
-

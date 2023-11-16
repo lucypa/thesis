@@ -58,7 +58,7 @@ Furthermore, netmap requires exclusive device access and thus the usual in-kerne
 Instead, if the NIC is to be shared, the pool of data buffers will be mapped into every user process that shares the NIC. 
 The result is that a process has access to data belonging to other processes. Also, the polling mode of
 \lstinline{io_uring} would monopolise the CPU even when there is no work to be done, consequently driving up
-power consumption of the system and it is unclear what policy is applied to this mode when there are multiple client
+power usage of the system and it is unclear what policy is applied to this mode when there are multiple client
 applications using it, or if there is other work to be done by the kernel.
 
 \section{User space device drivers}\label{s:userspace_dd}
@@ -255,7 +255,7 @@ achieves higher throughput than typical in-kernel packet processing\cite{DPDK:wp
 are polling mode only. This design decision stems from the high cost of interrupt handling on Linux, but it enables
 the application to monopolise the CPU as the driver must continuously poll for events. While the polling has little
 impact in high throughput networking scenarios where there is consistently work to be done, at lower throughput,
-the CPU utilisation will not decrease with the workload and the system will maintain high power consumption without
+the CPU utilisation will not decrease with the workload and the system will use significant power without
 making progress. Moreover, implementing a device driver as a library inside an application limits the device to a
 single client. Ultimately, the short-comings of monolithic kernels, namely, the high cost of interrupt processing
 and context switching, have influenced the design and reduced the flexibility. DPDK also relies on cache-coherent

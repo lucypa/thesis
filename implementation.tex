@@ -1,0 +1,212 @@
+\chapter{Implementation}\label{ch:implementation}
+
+Prior to this thesis, the seL4 Device Driver Framework already supported a minimal, single client
+networking system. This included an Ethernet driver, layer-one Rx multiplexer (limited to a single 
+client), copy component, a Tx multiplexer (also limited to a single client and containing no policy) and 
+a simple echo server client application. To properly support multiple client applications, we
+extend the Rx multiplexer to multiplex to multiple different client applications, and implement 3
+new transmit multiplexers. We also implement a simple timer driver to interface with our 
+transmit multiplexer when required, and finally, a new ARP component to handle broadcast traffic. 
+We configure all queues between these components to further implement different
+policies in \autoref{ch:evaluation}.
+
+
+\section{Transmit Multiplexer Policies}
+
+We implement 3 different transmit multiplexers, each implementing a different policy. 
+We present our pseudo code designs for how each multiplexer process transmit packets from
+the client. All multiplexers return free buffers from the driver to their respective 
+clients in the same FIFO order and hence this function has been omitted for brevity. 
+
+\subsection{Round Robin Policy}
+We implement a round robin policy by processing a single client's transmit request at a time.
+This is done in a loop to ensure we process any batched requests as outlined in \autoref{l:roundrobin}.
+
+\begin{figure} [H]
+    \begin{minted}[fontsize=\small]{c}
+void process_transmit_ready() {
+  enqueued = 0;
+  old_enqueued = 0;
+
+  while(!ring_full(driver->used_ring)) {
+    old_enqueued = enqueued;
+    for each client {
+      /* Process a single used buffer at a time */
+      if (!ring_empty(client->used_ring) &&
+          !ring_full(driver->used_ring)) {
+        
+        buf = dequeue(client->used_ring);
+        phys = get_phys_addr(buf);
+        enqueue(driver->used_ring, phys);
+        enqueued += 1;
+      }
+    }
+      /* we haven't processed any packets since 
+        last loop, exit */
+    if (old_enqueued == enqueued) break;
+  }
+}
+\end{minted}
+\caption{Transmit Round Robin Policy}
+\label{l:roundrobin}
+\end{figure}
+
+\subsection{Priority-based Policy}
+
+We implement a priority-based policy in \autoref{l:prioritybased}. We assume the list of
+clients is ordered from highest priority to lowest. Thus it is possible to change a clients
+priority at run time by manipulating this list.\\
+
+\begin{figure} [H]
+    \begin{minted}[fontsize=\small]{c}
+void process_transmit_ready() {
+  enqueued = 0;
+  old_enqueued = 0;
+  while(!ring_full(driver->used_ring)) {
+    old_enqueued = enqueued;
+    for each client {
+      while(!ring_empty(client->used_ring) &&
+            !ring_full(driver->used_ring)) {
+
+        buf = dequeue(client->used_ring);
+        phys = get_phys_addr(buf);
+        enqueue(driver->used_ring, phys);
+
+        enqueued += 1;
+        /* if a higher priority client has since 
+            made a request, go again */
+        if (!any_ring_empty(clients[:client])) break;
+      }
+    }
+
+    if (old_enqueued == new_enqueued) break;
+  }
+}
+\end{minted}
+\caption{Transmit Priority-based Policy}
+\label{l:prioritybased}
+\end{figure}
+
+\subsection{Bandwidth Limited Policy}\label{s:bandwidth}
+
+We implement a bandwidth-limited policy in \autoref{l:bandwidth}. The multiplexer will 
+process client transmit requests, calculating how much bandwidth the client has used based on
+each request size in a given time window. Should a client exceed its limit within the time window,
+the multiplexer will request a time out from the timer driver for the remaining time. As the multiplexer must
+regularly communicate with the timer driver to get the time and set timeouts, we design a simple timer driver
+API as shown in \autoref{l:timer}. 
+
+\begin{figure} [H]
+    \begin{minted}[fontsize=\small]{c}
+void process_transmit_ready() {
+  curr_time = get_time();
+  for each client {
+    if (curr_time - client->last >= TIME_WNDW) {
+      client->last = curr_time;
+      client->bandwidth = 0;
+    }
+    
+    while (!ring_empty(client->used_ring) && 
+           !ring_full(driver->used_ring) && 
+           client->bandwidth < client->max) {
+
+      buf = dequeue(client->used_ring);
+      phys = get_phys_addr(buf);
+      enqueue(driver->used_ring, phys);
+      /* recalculate the clients bandwidth used in 
+        the current time period */ 
+      client->bandwidth = calculate_bandwidth(buf_size);
+    }
+
+    if (!ring_empty(client->used_ring) && !client->timeout) {
+      set_timeout(TIME_WNDW - curr_time - client->last);
+      client->timeout = true;
+    }
+  }
+}
+\end{minted}
+\caption{Transmit Bandwidth Limited Policy}
+\label{l:bandwidth}
+\end{figure}
+
+\begin{figure} [H]
+    \begin{minted}[fontsize=\small]{c}
+uint64_t get_time() {
+  microkit_ppcall(TIMER, microkit_msginfo_new(GET_TIME, 0));
+  return microkit_mr_get(0);
+}
+        
+void set_timeout(uint64_t micros) {
+  microkit_mr_set(0, micros);
+  microkit_ppcall(TIMER, microkit_msginfo_new(SET_TIMEOUT, 1));
+}
+\end{minted}
+\caption{Timer Driver API}
+\label{l:timer}
+\end{figure}
+
+The timer driver is a high priority, passive server. It receives interrupts from the device,
+and forwards these by notifying the appropriate client or multiplexer. The bandwidth limited
+multiplexer reacts to such notifications by clearing the appropriate clients timeout and
+recalling process\_transmit\_ready. Note that this implementation could be made more efficient
+by mapping the timer registers read-only into the multiplexer's address space. This would remove
+the need for a frequent system call to get the time. However, these implementations are 
+meant only as example prototype rather than a prescribed implementation and further optimisations
+have been left for use-case specific implementations. \\
+
+This bandwidth-limited policy can also be combined with the round robin or priority based policy
+to order each clients requests. Such a case would be useful in reducing the 
+transmit latencies of latency sensitive applications.\\ 
+
+
+\section{ARP Component}
+
+We implement a separate ARP component that is responsible for handling all broadcast traffic. 
+As client MAC addresses are assigned at system design time, our ARP component has a static
+mapping of client IDs to virtualised MAC addresses. For client IDs, we use the clients 
+communication channel ID as assigned by microkit. 
+
+\subsection{Client Interface}
+As ARP is based on both MAC addresses and IPv4 addresses, the new component
+requires an interface with client applications. This interface will allow clients
+to register a new IPv4 address, change an IPv4 address, or remove one. As adding,
+changing and removing an IPv4 address is typically very infrequent for networking systems
+and requires minimal data exchange, we define this interface using a protected procedure
+call (PPC) from the client to the ARP component. The ARP component can use both the
+client ID and the MAC address provided in the arguments to store the clients IPv4 address. 
+
+\begin{figure} [H]
+    \begin{minted}[fontsize=\small]{c}
+void register_ip4(new_ip4_addr, mac_addr[6])
+{
+  /* split the MAC address across two registers so it fits */
+  microkit_mr_set(0, mac_addr[0:4]);
+  microkit_mr_set(1, mac_addr[4:6]);
+  microkit_mr_set(2, new_ip4_addr);
+  microkit_ppcall(ARP, microkit_msginfo_new(REGISTER_IP, 3));
+}
+
+void change_ip4(old_ip4_addr, new_ip4_addr, mac_addr[6])
+{
+  microkit_mr_set(0, mac_addr[0:4]);
+  microkit_mr_set(1, mac_addr[4:6]);
+  microkit_mr_set(2, old_ip4_addr);
+  microkit_mr_set(3, new_ip4_addr);
+  microkit_ppcall(ARP, microkit_msginfo_new(CHANGE_IP, 4));
+}  
+
+void remove_ip4(old_ip4_addr, mac_addr[6])
+{
+  microkit_mr_set(0, mac_addr[0:4]);
+  microkit_mr_set(1, mac_addr[4:6]);
+  microkit_mr_set(2, old_ip4_addr);
+  microkit_ppcall(ARP, microkit_msginfo_new(REMOVE_IP, 3));
+}
+\end{minted}
+\caption{Client Interface to ARP Component}
+\label{l:arpintf}
+\end{figure}
+
+Currently, the ARP component can only store a single IPv4 address per client, which
+is enough for our testing purposes, however this limit can be extended easily in the code
+base should the need arise.\\

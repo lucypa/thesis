@@ -4,6 +4,7 @@ set ylabel "Throughput (Mb/s)" offset 1,0,0
 set y2tics border
 set yrange [0:1700]
 set y2range [0:170]
+set xrange [0:1000]
 set xtics nomirror rotate
 set ytics nomirror
 set bmargin 14
@@ -11,14 +12,14 @@ set key outside below
 set size 1,1.5
 set style line 1 lw 6 lt 1
 set style line 1 lw 6 lt 7 dt 1 lc rgb 0xfccf03
-set style line 2 lw 5 lt 7 ps .5 dt 1 lc rgb 0xb1d190
-set style line 3 lw 5 lt 4 ps .3 dt 3 lc rgb 0xb1d190
-set style line 4 lw 4 lt 7 ps .5 dt 1 lc rgb 0x629e44
-set style line 5 lw 4 lt 4 ps .3 dt 3 lc rgb 0x629e44
-set style line 6 lw 2 lt 7 ps .5 dt 1 lc rgb 0x005c00
-set style line 7 lw 2 lt 4 ps .3 dt 3 lc rgb 0x005c00
-set style line 8 lw 2 lt 7 ps .5 dt 1 lc rgb 0x77b4e0
-set style line 9 lw 2 lt 4 ps .3 dt 3 lc rgb 0x77b4e0
+set style line 2 lw 5 lt 7 ps .5 dt 1 lc rgb 0xa5d162
+set style line 3 lw 5 lt 4 ps .3 dt 3 lc rgb 0xa5d162
+set style line 4 lw 4 lt 7 ps .5 dt 1 lc rgb 0xfb053e
+set style line 5 lw 4 lt 4 ps .3 dt 3 lc rgb 0xfb053e
+set style line 6 lw 2 lt 7 ps .5 dt 1 lc rgb 0x0563fb
+set style line 7 lw 2 lt 4 ps .3 dt 3 lc rgb 0x0563fb
+set style line 8 lw 2 lt 7 ps .5 dt 1 lc rgb 0xfbbd05
+set style line 9 lw 2 lt 4 ps .3 dt 3 lc rgb 0xfbbd05
 set style line 13 lw 2 lt 6
 set style line 14 lw 2 lt 8
 set term postscript eps enhanced color size 2.5,2
@@ -71,28 +72,28 @@ e
 000899 900.583 0 88.0106 0
 000999 957.701 0 92.2288 0
 e
-000100 100.014 0 29 0
-000200 200.043 0 46 0
-000299 300.058 0 57 0
-000399 399.928 0 62 0
-000499 499.876 0 70 0
-000600 599.865 0 76 0
-000700 700.317 0 81 0
-000799 800.328 0 87 0
-000899 900.368 0 93 0
-000999 957.58 0 96 0
+000100 100.005 0 34 0
+000199 199.97 0 50 0
+000300 300.173 0 63 0
+000399 400.043 0 66 0
+000499 500.781 0 73 0
+000600 600.482 0 79 0
+000699 700.792 0 85 0
+000800 800.105 0 90 0
+000899 900.053 0 97 0
+000999 957.509 0 99.9 0
 e
 
-000100 100.014 0 29 0
-000200 200.043 0 46 0
-000299 300.058 0 57 0
-000399 399.928 0 62 0
-000499 499.876 0 70 0
-000600 599.865 0 76 0
-000700 700.317 0 81 0
-000799 800.328 0 87 0
-000899 900.368 0 93 0
-000999 957.58 0 96 0
+000100 100.005 0 34 0
+000199 199.97 0 50 0
+000300 300.173 0 63 0
+000399 400.043 0 66 0
+000499 500.781 0 73 0
+000600 600.482 0 79 0
+000699 700.792 0 85 0
+000800 800.105 0 90 0
+000899 900.053 0 97 0
+000999 957.509 0 99.9 0
 e
 000100 100 0 40 0
 000200 200 0 56 0

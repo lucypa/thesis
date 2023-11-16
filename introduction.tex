@@ -1,8 +1,8 @@
 \chapter{Introduction}\label{ch:intro}
 
-Typical I/O systems face major problems with either security, performance or both.
-This thesis explores a novel I/O framework on seL4 to develop a secure, high performance
-networking-based system.
+Typical networking-focused systems face major problems with either security, performance or both.
+This thesis explores a novel I/O framework on seL4 for secure, high-performance
+networking-based systems and extends the framework to support multi-client systems.
 
 \section{The problem with I/O on monolithic kernels}
 Operating systems are designed to abstract over hardware while
@@ -46,7 +46,7 @@ drivers are typically written by hardware engineers as opposed to OS experts, an
 complexity of the kernel, has made kernel programming extremely difficult \cite{Swift_MLE_02}.\\
 While modern kernels deploy a number of security mechanisms to protect their execution,
 a large portion of vulnerabilities remains exploitable \cite{Narayanan_HTJB_20}. For example,
-even advanced defense mechanisms, such as code pointer integrity (CPI) and safe stacks,
+even advanced defence mechanisms, such as code pointer integrity (CPI) and safe stacks,
 that protect the control flow of an application \cite{Kuznetsov_SPCSS_14}, remain
 vulnerable to data-only attacks. These attacks, which focus on altering or forging
 the critical data of an application can be combined with automated attack
@@ -92,7 +92,11 @@ that guarantees correct isolation of user level components \cite{Klein_AEMSKH_14
 However, the microkernel design can lead to performance
 degradation of I/O systems due to the inherent number of extra context switches required. The seL4 Device Driver
 Framework (sDDF), introduced in \autoref{ch:sddf}, is a simple I/O framework that minimises this overhead
-and provides interfaces and protocols for developing secure I/O systems \cite{Parker_22:sddf}. This 
-framework can already demonstrate performance competitive with Linux in a simple networking-based
-system, and makes for a strong starting point from which we will base our
-solution outlined in \autoref{ch:approach}.
+and provides interfaces and protocols for developing performant networking systems \cite{Parker_22:sddf}. It provides
+a strong starting point from which we will base our solution.
+However, the sDDF, as it stands, does not support more than a simple echo server application, and is confined 
+to a single core platform. \autoref{ch:design} outlines our design to expand the sDDF to flexibly and securely 
+support multiple client applications and how such a design could scale to multi-core systems. We outline implementation
+details in \autoref{ch:implementation} and evaluate our designs in \autoref{ch:evaluation}. To conclude, we highlight
+the current limitations of the framework and directions for future work. 
+

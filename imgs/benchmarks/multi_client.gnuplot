@@ -4,7 +4,7 @@ set xlabel "Load (Mb/s)" offset 0,0.5,0
 set ylabel "Throughput (Mb/s)" offset 1,0,0
 set y2tics border
 set yrange [0:1500]
-set xrange [100:500]
+set xrange [0:500]
 set y2range [0:150]
 set x2range [200:1000]
 set xtics nomirror rotate

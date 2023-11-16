@@ -29,6 +29,7 @@
 
 \usepackage{graphicx}
 \usepackage{listings}
+\usepackage{courier}
 \usepackage{cite}
 \usepackage{pdflscape}
 \usepackage{longtable}
@@ -40,6 +41,8 @@
 \usepackage{etoolbox}
 \usepackage[outputdir=obj/]{minted}
 \usepackage{hyperref}
+\usepackage{tikz}
+\usepgflibrary{shapes.arrows}
 
 \BeforeBeginEnvironment{minted}{\begin{tcolorbox}}
 \AfterEndEnvironment{minted}{\end{tcolorbox}}
@@ -61,14 +64,14 @@
 
 
 %% Thesis details
-\thesistitle{High-performance I/O on seL4}
+\thesistitle{High-performance Networking-based Systems on seL4}
 \thesisschool{School of Computer Science and Engineering}
 \thesisauthor{Lucy Parker}
 \thesisZid{z5059323}
 \thesisdegree{Bachelor of Computer Science (Honours)}
 \thesisdate{November 2023}
 \thesissupervisor{Prof.\ Gernot Heiser \& Dr Peter Chubb}% for undergrad theses only
-\thesisproject{}
+%\thesisproject{}
 \graphicspath{{imgs/}{imgs/benchmarks/}}
 
 %% My own LaTeX macros, definitions, etc
@@ -87,7 +90,6 @@
 \frontmatter  
 \maketitle
 \include{abstract}
-\include{acknowledgements}
 \include{abbreviations}
 
 \tableofcontents
@@ -101,8 +103,9 @@
 \include{background}
 \include{relatedwork}
 \include{sDDF}
-\include{approach}
+%\include{approach}
 \include{design}
+\include{implementation}
 \include{evaluation}
 \include{conclusion}
 

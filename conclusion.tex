@@ -1,1 +1,46 @@
-\chapter{Conclusion and Future Work}\label{ch:conclusion}
+\chapter{Conclusion}\label{ch:conclusion}
+
+Typical networking based systems face major problems with either security, performance or both. 
+This thesis evaluated a novel framework in the seL4 Device Driver Framework, and expanded it's 
+functionality to flexibly support multiple client applications on multi-core systems. We explored
+and evaluated how system designers can reinforce different policies using different multiplexer implementations,
+adjusting client facing queues, configuring client scheduling parameters, and pinning components across cores.
+These parameters can be easily configured for a system's particular use-case, where analysis is required
+on that use-case to properly determine the optimal configuration.
+We also evaluated our system against an untrusted client application, and 
+presented an additional component that protects the rest of the framework from being compromised. 
+This new component introduces acceptable overheads, and can be easily configured for a systems threat scenario. 
+We conclude that our componentised, microkernel-based framework not only outperforms a typical monolithic
+set up in Linux but also provides stronger security guarantees to historically bug prone code. Our static architecture
+scales efficiently and flexibly supports multi-client systems. \\
+
+\section{Future Work}
+
+The seL4 Device Driver Framework is not yet a fully functional networking framework as there are a number of features
+not yet supported. 
+Firstly, our evaluation was confined to UDP only. TCP is a more complex protocol, requiring outgoing packets to be acknowledged 
+by the receiver. This means the IP stack must temporarily store buffers until an acknowledgement message is received to enable missed packets 
+to be resent. As such, lwIP does not flexibly support zero-copy TCP and changes to the IP stack would be required to properly
+support this if lwIP is to be used with our framework. Additionally, to support TCP, further consideration must also be taken
+for client initiated TCP transmit using the sDDF as the client must poll incoming queues to receive acknowledgement packets. 
+This thesis has omitted a deeper evaluation of TCP and left it for future work. \\
+
+Our performance comparisons against Linux systems were limited to the synchronous socket API. Linux also supports a number
+of asynchronous designs, as discussed in \autoref{ch:related_work}, which would provide an interesting comparison against 
+our work. Obtaining these would require porting the framework to an x86 architecture with a 1Gbps NIC. \\
+
+This thesis was confined to static architectures. The sDDF aims to support minimal dynamicism by enabling the stopping and restarting
+of components as well dynamically changing policies. For example, this thesis could be extended to permit a trusted component
+to detect a misbehaving client and restart the client application. Multiplexer components could be swapped out at run time to enable
+swappable policy enforcement, however the framework as it stands does not support this and further work is required in measuring 
+the performance cost of such a feature. \\
+
+Our evaluation of multi-core systems revealed significant overhead in the SMP configuration of seL4. This warrants a thorough investigation
+to properly understand and optimise these overheads. \\
+
+Finally, although our design goals enable our solution to be formally verified, this was left out of scope of this thesis.
+The TCB is significantly smaller in our design compared to a monolithic system, but the microkernel, our driver, multiplexers 
+and copy components are all trusted. seL4 is already formally verified, however, a bug in one of our other trusted components 
+could potentially compromise the system. The simplicity of each of these components means they are accessible to automatic
+verification methods. Furthermore, the communication protocols between components means a missed notification could deadlock
+the entire system. Fortunately, these protocols can be verified for the absence of such a case using model checking. \\

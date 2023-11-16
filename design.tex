@@ -1,9 +1,45 @@
-\chapter{Design and Implementation}\label{ch:design}
+\chapter{Design}\label{ch:design}
 
-\section{Multiplexer Policy}
+To achieve high performance I/O on seL4, this thesis will extend the current seL4 Device Driver Framework prototype 
+to securely support multiple client applications on a multi-core system. While doing so, 
+we will evaluate the sDDF design while improving any bottlenecks in the current implementation
+and optimise the system for high performance networking systems.
 
-We design several different multiplexers, each implementing a different policy
-that only seeks to cater to specific use cases. The multiplexers are trusted components,
+When extending the sDDF, we wish to maintain the current prototype's design goals. 
+Specifically, these are:
+\begin{itemize}
+\item \textbf{Radical Simplicity}: Each component in the framework should be kept as simple as possible. While verification is outside the scope
+of this thesis, keeping each component simple will aid any future verification effort while assisting developers to reason about it.
+\item \textbf{Strict separation of concerns}: Each component has one and only one job to do. 
+\item \textbf{Swappable policy}: Any policy enforced by the framework should be swappable for another policy for different use cases.
+This enables the framework to be flexible and support different use cases while keeping the implementation simple.
+\item \textbf{Secure}: The framework should be secure by taking advantage of the security properties provided by seL4. seL4 guarantees
+complete isolation of user-level components, and its capability system provides fine grained access control. Untrusted clients must not be able
+to interfere with one another, nor any of the trusted shared components such as the multiplexers. 
+\item \textbf{Performance}: The solution should be performance competitive with the current prototype,
+as well as with other existing I/O frameworks (see \autoref{ch:related_work}).
+\end{itemize}
+
+To accomplish our goal, we need to:
+\begin{enumerate}
+    \item Implement policies for the multiplexers, \autoref{s:mux_pol}
+    \item Support broadcast protocols, \autoref{s:arp}
+    \item Support different client applications that imitate different use cases, \autoref{s:client_apps}
+    \item Support execution across multiple CPUs, \autoref{s:multicore}
+    \item Perform a threat analysis of the framework to outline, and where possible, improve any
+         security vulnerabilities in our design, \autoref{s:security}
+    \item Evaluate and optimise: evaluate the solution by benchmarking the system throughout development 
+    and improve any performance bottlenecks.
+\end{enumerate}
+
+\section{Multiplexer Policy} \label{s:mux_pol}
+
+A multiplexer servicing multiple components inherently requires a policy to
+determine the order in which it will process work. Rather than designing a generic policy
+that aims to cater to all possible use-cases, we instead
+design several different multiplexers that implement a simple policy for a specific use-case. 
+
+Both the Rx and Tx multiplexers are trusted components,
 and thus are kept intentionally simple to leave them accessible to formal verification.
 The main tasks of the multiplexers, regardless of policy implemented, are as follows:
 
@@ -18,13 +54,13 @@ The main tasks of the multiplexers, regardless of policy implemented, are as fol
             must be returned to the appropriate client.
     \item Receive buffers belong to the driver, and therefore all free buffers on the receive path
             must be returned to the driver.
-    \item Implement policy as detailed below.
-    \item The transmit multiplexer has the ability to sanitise the Ethernet header of outgoing packets
-          to ensure the destination MAC address is well formed and will not cause issues
-          on the network. Modern NICs are capable of sanitising headers of outgoing packets,
-          but many systems may require a design whereby the NIC is not trusted to perform this check 
-          and thus it should be done in software.
 \end{itemize}
+
+%    \item The transmit multiplexer has the ability to sanitise the Ethernet header of outgoing packets
+%to ensure the destination MAC address is well formed and will not cause issues
+%on the network. Modern NICs are capable of sanitising headers of outgoing packets,
+%%but many systems may require a design whereby the NIC is not trusted to perform this check 
+%and thus it should be done in software.
 
 \subsection{Receive Policy}\label{s:rx_policy}
 
@@ -46,141 +82,25 @@ processed. This design removes the need for policy on processing free buffers. \
 
 \subsection{Transmit Policy}
 
-All incoming requests from clients are processed subject to a particular policy. The designs of some
-example policies are outlined below.\\
-The transmit multiplexer returns free buffers from the driver to the client in FIFO order.
-We propose client Transmit Free (TxF) queues are at least the size of the number of buffers
-belonging to that client in order to prevent the multiplexer from becoming blocked 
-should a client's TxF queue become full. \\ 
+All incoming requests from clients are processed subject to a particular policy. 
+We implement 3 different policies in \autoref{ch:implementation}:
+\begin{enumerate}
+    \item \textbf{Round robin}: whereby the multiplexer processes an outgoing request one at a time, alternating between clients.
+    \item \textbf{Priority-based}: whereby the multiplexer prioritises client requests as per their given priority, processing as many
+    requests as available for the highest priority client possible. 
+    \item \textbf{Throughput-based}: whereby the multiplexer limits the available outgoing bandwidth per client at a time.
+\end{enumerate}
+
+The transmit multiplexer also returns
+free buffers from the driver to the client in FIFO order, regardless of policy implemented on
+processing transmit requests. However, the multiplexer has no way of knowing which client
+a particular buffer belongs to before it has been dequeued. Should a particular client's 
+Transmit Free (TxF) queue be full, the multiplexer could become blocked waiting to enqueue
+a free buffer. We propose client TxF queues are at least 
+the size of the number of buffers belonging to that client in order to prevent this. \\ 
 Similarly, the drivers Transmit Used (TxU) queue should be at least the size of the sum of 
 all client transmit buffers. This ensures the multiplexer will not become blocked on this queue
 and thus disrupt the policy implemented to process client requests. \\ 
-
-\subsubsection{Round Robin Policy}
-We implement a round robin policy by processing a single client's transmit request at a time.
-This is done in a loop to ensure we process any batched requests as outlined in \autoref{l:roundrobin}.
-
-\begin{figure} [H]
-    \begin{minted}[]{c}
-void process_transmit_ready():
-    enqueued = 0
-    old_enqueued = 0
-
-    while(!ring_full(driver.used_ring)):
-        old_enqueued = enqueued
-        for each client:
-            /* Process a single used buffer at a time */
-            if (!ring_empty(client.used_ring) &&
-                !ring_full(driver.used_ring)):
-                buf = dequeue(client.used_ring)
-                phys = get_phys_addr(buf)
-
-                enqueue(driver.used_ring, phys)
-
-                enqueued += 1
-            
-        /* we haven't processed any packets since last loop, exit */
-        if (old_enqueued == enqueued) break
-\end{minted}
-\caption{Transmit Round Robin Policy}
-\label{l:roundrobin}
-\end{figure}
-
-\subsubsection{Priority-based Policy}
-
-We implement a priority-based policy in \autoref{l:prioritybased}. We assume the list of
-clients is ordered from highest priority to lowest. Thus it is possible to change a clients
-priority at run time by manipulating this list.\\
-
-\begin{figure} [H]
-    \begin{minted}[]{c}
-void process_transmit_ready():
-    enqueued = 0
-    old_enqueued = 0
-    while(!ring_full(driver->used_ring)):
-        old_enqueued = enqueued
-        for client in clients:
-            while(!ring_empty(client->used_ring) &&
-                    !ring_full(driver->used_ring)):
-                buf = dequeue(client.used_ring)
-                phys = get_phys_addr(buf)
-                enqueue(driver.used_ring, phys)
-
-                enqueued += 1
-                /* if a higher priority client has since 
-                    made a request, go again */
-                if (!ring_empty(clients[:client])): break
-
-        if old_enqueued == new_enqueued: break
-\end{minted}
-\caption{Transmit Priority-based Policy}
-\label{l:prioritybased}
-\end{figure}
-
-\subsubsection{Bandwidth Limited Policy}\label{s:bandwidth}
-
-We implement a bandwidth-limited policy in \autoref{l:bandwidth}. The multiplexer will 
-process client transmit requests, calculating how much bandwidth the client has used based on
-each request size in a given time window. Should a client exceed its limit within the time window,
-the multiplexer will request a time out from the timer driver for the remaining time. As the multiplexer must
-regularly communicate with the timer driver to get the time and set timeouts, we design a simple timer driver
-API as shown in \autoref{l:timer}. 
-
-\begin{figure} [H]
-    \begin{minted}[]{c}
-void process_transmit_ready():
-    curr_time = get_time()
-    for each client:
-        if (curr_time - client.last_time >= TIME_WINDOW):
-            client.last_time = curr_time
-            client.bandwidth = 0
-        
-        while !ring_empty(client.used_ring) && 
-                !ring_full(driver.used_ring) && 
-                client.bandwidth < client.max:
-            buf = dequeue(client.used_ring)
-            phys = get_phys_addr(buf)
-            enqueue(driver.used_ring, phys)
-            /* recalculate the clients bandwidth used in 
-                the current time period */ 
-            client.bandwidth = calculate_bandwidth(buf_size)
-
-        if !ring_empty(client.used_ring) && !client.timeout:
-            set_timeout(TIME_WINDOW - curr_time - client.last_time)
-            client.timeout = true
-\end{minted}
-\caption{Transmit Bandwidth Limited Policy}
-\label{l:bandwidth}
-\end{figure}
-
-\begin{figure} [H]
-    \begin{minted}[]{c}
-uint64_t get_time() {
-    return microkit_ppcall(TIMER, microkit_msginfo_new(GET_TIME, 0));
-}
-        
-void set_timeout(uint64_t micros) {
-    microkit_mr_set(0, micros);
-    microkit_ppcall(TIMER, microkit_msginfo_new(SET_TIMEOUT, 1));
-}
-\end{minted}
-\caption{Timer Driver API}
-\label{l:timer}
-\end{figure}
-
-The timer driver is a high priority, passive server. It receives interrupts from the device,
-and forwards these by notifying the appropriate client or multiplexer. The bandwidth limited
-multiplexer reacts to such notifications by clearing the appropriate clients timeout and
-recalling process\_transmit\_ready. Note that this implementation could be made more efficient
-by mapping the timer registers read-only into the multiplexer address space. This would remove
-the need for a system call that frequently gets the time. However, these implementations are 
-meant only as example multiplexers rather than a prescribed implementation. \\
-
-This bandwidth-limited policy can also be combined with the round robin or priority based policy
-to order each clients requests. Such a case would be useful in reducing the 
-transmit latencies of latency sensitive applications.\\ 
-
-% does it make sense to set a total limit greater than whats actually available? 
 
 \subsection{Enforcing Policy Through System Design}
 Depending on the greater system design, we expect some transmit policies to not work.
@@ -197,17 +117,17 @@ that each client will be stalled until their single request has been processed, 
 another client will have the opportunity to run in the interim. The multiplexer will
 then only process a single request per client at a time, though at the detriment to performance.\\
 Similarly, should we require a priority based policy, we can assign appropriate priorities
-to the clients and limit lower priority client's queue sizes, thus relying on the scheduling
-of the system to reinforce this policy.\\
+to the clients scheduling parameters and limit lower priority client's queue sizes, thus relying on the scheduling
+of the system to enforce this policy.\\
 Finally, we can limit the client's queue sizes on both the transmit and/or receive paths
 to limit the amount of either transmit and/or receive throughput available to each client.
 Appropriate sizes can be selected based on experiments discussed in \autoref{ch:evaluation}.\\ 
 
-\section{Broadcast Protocols}
+\section{Broadcast Protocols}\label{s:arp}
 Some protocols broadcast traffic to all systems by addressing the
 Ethernet packet with a specific MAC address of ff:ff:ff:ff. However,
-as the receive multiplexer is based on MAC addresses, it will not
-know how to handle such packets. In particular, we need to support 
+as the receive multiplexer is implemented at layer one and thus based on MAC addresses,
+it will not know how to handle such packets. In particular, we need to support 
 the Address Resolution Protocol (ARP), as it maps an
 IPv4 address to a MAC address and thus 
 is required for any network communication via Ethernet.\\
@@ -222,7 +142,7 @@ simultaneously and thus how many buffers should be available in all client side
 RxF queues at all times. If there are no any free buffers available for ARP, then
 a client will not be able to receive any IPv4 traffic.\\
 Instead, we implement a separate component to handle broadcast traffic. It interfaces
-with the multiplexers the same as any other client, as shown in \autoref{f:mux}. 
+with the multiplexers the same as any other client, as shown in \autoref{f:arp}. 
 
 \begin{figure}[h]
     \centering
@@ -231,9 +151,9 @@ with the multiplexers the same as any other client, as shown in \autoref{f:mux}.
     \label{f:arp}
 \end{figure}
 
-\subsection{Separate ARP Component}
+\subsection{Separate ARP Component}\label{s:arp_design}
 A separate ARP component only requires the minimal functionality to respond to 
-the address resolution protocol on behalf of any client applications running on
+the Address Resolution Protocol on behalf of any client applications running on
 the system. In keeping with the design goals, this component will be kept 
 very simple in the aims of enabling formal verification. Therefore we consider
 this component to be trusted to maintain the integrity of its shared queues with
@@ -241,133 +161,74 @@ the multiplexer components as well as interfacing with clients and responding
 correctly to ARP on behalf of the clients. \\
 While supporting other broadcast protocols, such as DHCP, is out of scope of this thesis, 
 the simplicity of the ARP component design enables its functionality to be extended easily
-to support other broadcast protocols in the future.
-
-\subsection{Client Interface}
-As ARP is based on both MAC addresses and IPv4 addresses, the new component
-requires an interface with client applications. This interface will allow clients
-to register a new IPv4 address, change an IPv4 address, or remove one. As adding,
-changing and removing an IPv4 address is typically very infrequent for networking systems
-and requires minimal data exchange, we define this interface using a protected procedure
-call (PPC) from the client to the ARP component. 
-
-\begin{figure} [H]
-    \begin{minted}[]{c}
-void register_ip4(new_ip4_addr, mac_addr[6])
-{
-    /* split the MAC address across two registers so it fits */
-    microkit_mr_set(0, mac_addr[0:4]);
-    microkit_mr_set(1, mac_addr[4:6]);
-    microkit_mr_set(2, new_ip4_addr);
-    microkit_ppcall(ARP, microkit_msginfo_new(REGISTER_IP, 3));
-}
-
-void change_ip4(old_ip4_addr, new_ip4_addr, mac_addr[6])
-{
-    microkit_mr_set(0, mac_addr[0:4]);
-    microkit_mr_set(1, mac_addr[4:6]);
-    microkit_mr_set(2, old_ip4_addr);
-    microkit_mr_set(3, new_ip4_addr);
-    microkit_ppcall(ARP, microkit_msginfo_new(CHANGE_IP, 4));
-}
-
-void remove_ip4(old_ip4_addr, mac_addr[6])
-{
-    microkit_mr_set(0, mac_addr[0:4]);
-    microkit_mr_set(1, mac_addr[4:6]);
-    microkit_mr_set(2, old_ip4_addr);
-    microkit_ppcall(ARP, microkit_msginfo_new(REMOVE_IP, 3));
-}
-\end{minted}
-\caption{Client Interface to ARP Component}
-\label{l:arpintf}
-\end{figure}
-
-Currently, the ARP component can only store a single IPv4 address per client, which
-is enough for our testing purposes, however this limit can be extended easily in the code
-base should the need arise.\\
+to support other broadcast protocols in the future. Such an extension would entail 
+adding additional packet processing logic to our ARP component. 
 
 \section{Client Applications}\label{s:client_apps}
 
 The client application consists of a simple echo server and uses lwIP \cite{Dunkels_01} as an IP
 stack library to process the network packet headers. The lwIP API stores packet data, including pointers
-to the payload, in a pbuf struct. The pbufs are allocated from static sized memory pools and can be chained
-together. On the receive path, pbufs aren't chained together as the incoming payload already contains
-all the required packet headers. However, when transmitting a packet via the UDP or TCP API, the pbuf will
-only wrap around the actual payload, and in order to add the required headers, lwIP allocates additional pbufs
-containing these headers that are added to the head of a pbuf chain. Once a packet is ready to be transmitted,
-a chain of pbufs must then all be copied into a single sDDF buffer before being enqueued to the multiplexer.
-The result of this design means that if there isn't a transmit buffer available for this chain of pbufs, the
-packet is dropped and the pbufs are freed. While this is an acceptable outcome, it unfortunately means that a significant
+to the payload, in a \texttt{pbuf} struct. The \texttt{pbuf}s are allocated from static-sized memory pools and can be chained
+together to produce a scatter-gather list.
+On the receive path, \texttt{pbuf}s aren't chained together as the incoming payload already contains
+all the required packet headers. However, when transmitting a packet via the UDP or TCP API, the \texttt{pbuf} will
+only wrap around the actual payload, and in order to add the required headers, lwIP allocates additional \texttt{pbuf}s
+containing these headers that are added to the head of a \texttt{pbuf} chain as shown in \autoref{f:pbuf0s}. \\
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.6\textwidth]{pbufs0.pdf}
+    \caption{Example lwIP \texttt{pbuf} list}
+    \label{f:pbuf0s}
+\end{figure}
+
+Once a packet is ready to be transmitted,
+a chain of \texttt{pbuf}s must then all be copied into a single sDDF buffer before being enqueued to the multiplexer.
+The result of this design means that if there isn't a transmit buffer available for this chain of \texttt{pbuf}s, the
+packet is dropped and the \texttt{pbuf}s are freed. While this is an acceptable outcome, it unfortunately means that a significant
 amount of packet processing is then wasted. In order to combat this on the simple echo server and reduce
 wasted cycles, packets are only
 processed on the receive path depending on the availability of transmit buffers. This stalls the client application
 until it receives a notification that more transmit buffers are available. \\
+
 However, this solution is very limiting
 as most networking applications do not have symmetric traffic. For example, a client application could receive a
 higher number of packets than it transmits, and thus the design stalls the receive processing without reason. 
 On the other hand, a client application with higher transmit demands would bypass the check for transmit buffers and result in
 packets being dropped after packet processing. \\
+
 To remove the premature check for transmit buffers on the receive path, we need to 
-temporarily store the transmit context by storing the pbuf chains when there are not enough transmit buffers
+temporarily store the transmit context by storing the \texttt{pbuf} chains when there are not enough transmit buffers
 available to the client. Once more transmit free buffers are available (by which the client will be notified),
 the client can resume the transmit context. 
 
 \begin{figure}[h]
     \centering
-    \includegraphics[width=0.8\textwidth]{pbufs.pdf}
-    \caption{Example lwIP pbuf chain}
+    \includegraphics[width=0.7\textwidth]{pbufs.pdf}
+    \caption{Example lwIP \texttt{pbuf} chain}
     \label{f:pbufs}
 \end{figure}
 
-We store the transmit context by simply linking pbuf chains together and storing the head and tail of the list. 
-\autoref{f:pbufs} shows how multiple chains of pbufs can be linked together. When a chain of pbufs is ready to
+We store the transmit context by simply linking \texttt{pbuf} chains together and storing the head and tail of the list. 
+\autoref{f:pbufs} shows how multiple chains of \texttt{pbuf}s can be linked together. When a chain of pbufs is ready to
 be transmitted, but there are not any free transmit buffers, we append the chain to the tail of the list and 
-increment the reference count of the chain. This ensures the pbufs won't be freed until they have actually been sent.
-When a client is notified of the availability of more free transmit buffers, we dequeue pbuf chains from the head of
-this list. This only requires adding a single extra field to lwIP pbuf structs. This simple change removes any
-restriction on the receive path, sets up the client application to no longer expect symmetric traffic.\\
+increment the reference count of the chain. This ensures the \texttt{pbuf}s won't be freed until they have actually been sent.
+When a client is notified of the availability of more free transmit buffers, we dequeue \texttt{pbuf} chains from the head of
+this list. This only requires adding a single extra field to lwIP \texttt{pbuf} structs. This simple change removes any
+restriction on the receive path, sets up the client application to no longer expect symmetric traffic. We implement simple, example
+applications with asymmetric traffic to evaluate how our framework copes with such loads in \autoref{ch:evaluation}.
 
-\subsection{Asymmetric Traffic}
-Now that we can support asymmetric traffic in the client application, we require simple test cases that emulate different
-applications that could be deployed on a real system. We wish to test
-applications with different requirements: an application with higher transmit demands and minimal incoming traffic,
-and an application with higher receive demands and minimal outgoing traffic. 
+\section{Multi-core Systems}\label{s:multicore}
+The sDDF is implemented on top of the seL4 microkit, which already supports multicore systems
+and so there are minimal changes required
+to achieve this. As the transport layer is lock-free and system calls are kept to a minimum, the framework itself 
+\emph{should} be capable of exploiting the parallelism of multicore hardware. We explore possible system designs in \autoref{ch:evaluation}.
+Furthermore, it is possible to split the driver into two separate components. One component would be responsible for
+handling client initiated events (predominantly transmit requests), while the other component would react to 
+hardware events. This separation has the potential to achieve more performance on a multicore system as
+each of these components could run concurrently on separate cores.\\
 
-\subsubsection{Transmit dominant application}\label{s:transmit_dom}
-We implement a simple client application that transmits 10,000 UDP packets, of 1472 bytes each, for every UDP packet received.
-Ethernet maximum transmission unit is 1518 bytes, which leaves a maximum of 1472 bytes in payload once you account for 14 bytes
-in Ethernet headers and 32 bytes for UDP/IP headers. 
-In order to interface with lwIP to initiate additional transmits, we first allocate a pbuf, and write 1472 bytes of data
-to the pbuf's payload. As pbufs are allocated from a memory pool, they can also run out. Should this occur, we temporarily
-pause the transmit context by storing the number of packets we have already sent so we can transmit the rest once more 
-memory has freed up. The bottleneck on memory availability for lwIP pbufs occurs because pbufs are queued while the application
-waits for more transmit buffers as outlined above. Thus, when transmit buffers become available, so to does more memory for
-pbufs. We can thus resume the transmit context once the transmit multiplexer has notified the application that more
-transmit buffers are available. The benefit of temporarily pausing the transmit context is that it also ensures the application
-is available to process any incoming traffic in the interim. 
-
-\subsubsection{Receive dominant application}
-We also implement a simple receive dominant client application that for every 10,000 UDP packets received, it transmits a single one.
-This application is much simpler to implement as all memory management is already dealt with so we just adapt the echo server to 
-only echo every 10,000th packet.\\
-
-\subsection{Client Initiated Transmit}
-Not all networking devices act as servers that only react to incoming traffic. A common use case of a non-reactive application is a 
-web client which initiates network communication with another networking device. To test such a scenario, we implement another client
-application which first initiates a handshake with another device, then transmits 1,000,000 packets. The initial handshake is there to 
-ensure the external benchmarking application is ready to receive all incoming packets. We interface with lwIP as described
-in \autoref{s:transmit_dom}.
-
-\subsection{Compute heavy applications}\label{s:compute_heavy}
-Another limitation of the test environment is that the client applications do not actually do any processing with the incoming or outgoing traffic.
-A typical networking system would perform some computation on the incoming data, such as a HTTP web server, which would need to fetch web pages from
-memory to process incoming HTTP requests. Although developing such a test scenario is out of scope for this thesis, we still want to test
-our framework under high loads where the CPU cannot keep up with the traffic to ascertain the absence of a performance collapse, as well as
-ensuring that the system abides by any policy implemented in a multi-client set up. We alter the echo application to perform 10 unnecessary data copies
-and checksum calculations.
-
-\section{Two-threaded driver on multi-core systems}
+\subsection{Two-threaded driver on multi-core systems}
 A device driver has multiple tasks: it must react to hardware events as signalled by an interrupt and it must react to software events,
 such as a client request. Namely, the driver has 4 tasks:
 
@@ -397,10 +258,14 @@ until it receives a notification from the IRQ side driver when space has freed u
 However, introducing an additional component to the framework will incur additional performance overheads due to extra context switches required.
 We first analyse these overheads in \autoref{ch:evaluation} before concluding whether this design is appropriate on multi-core systems. 
 
-\section{Security}
-One of our main design goals is to prioritise security. This means ensuring a 
-misbehaving client application does not have the ability to interfere with other clients and/or the rest of the system. Clients receive
-data by dequeuing metadata, including buffer addresses, from a shared ring buffer, and transmit data by enqueuing such metadata. 
+\section{Security}\label{s:security}
+Component communication in the sDDF relies on shared memory and asynchronous notifications. While asynchronous communication
+has considerable performance benefits (see \autoref{ch:related_work}), it means we trust each component to abide by the protocol. 
+Future work, left out of scope of this thesis, will explore verifying all trusted components. However, this excludes the client
+applications. Our design should ensure a 
+misbehaving client application does not have the ability to interfere with other clients and/or the rest of the system.\\
+
+Clients receive data by dequeuing metadata, including buffer addresses, from a shared ring buffer, and transmit data by enqueuing such metadata. 
 However, as these shared ring buffers are used by the components on either side of the client (e.g.. a multiplexer), we currently 
 trust the client to maintain the integrity of the queues, and not write to buffers during DMA (i.e. once a packet has been enqueued
 for transmit and before the buffer returns in the free queue). Specifically, we trust the client to:

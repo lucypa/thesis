@@ -201,7 +201,7 @@
 \newcommand{\thesisZid}[1]{\gdef\ThesisAuthorZid{#1}}
 \newcommand{\thesisdegree}[1]{\gdef\ThesisDegreeName{#1}}
 \newcommand{\thesisdate}[1]{\gdef\ThesisDate{#1}}
-\newcommand{\thesisproject}[1]{\gdef\ThesisProject{#1}}
+%\newcommand{\thesisproject}[1]{\gdef\ThesisProject{#1}}
 \newcommand{\thesissupervisor}[1]{\gdef\ThesisSupervisorName{#1}}
 
 \newcommand{\ThesisTitle}{\@latex@error{No \noexpand\thesistitle given}\@ehc}
@@ -209,7 +209,7 @@
 \newcommand{\ThesisAuthorZid}{\@latex@error{No \noexpand\thesisZid given}\@ehc}
 \newcommand{\ThesisDegreeName}{\@latex@error{No \noexpand\thesisdegree given}\@ehc}
 \newcommand{\ThesisDate}{\@latex@error{No \noexpand\thesisdate given}\@ehc}
-\newcommand{\ThesisProject}{\@latex@error{No \noexpand\thesisproject given}\@ehc}
+%\newcommand{\ThesisProject}{\@latex@error{No \noexpand\thesisproject given}\@ehc}
 \newcommand{\ThesisSupervisorName}{\@latex@error{No \noexpand\thesissupervisor given}\@ehc}
 
 \newcommand{\ThesisInsideMark}{}
@@ -450,12 +450,8 @@ Graduate Research.
               Supervisors: & \ThesisSupervisorName
             \end{tabular}
             \hfill
-            \begin{tabular}{rl@{}}
+            \begin{tabular}{@{}rl}
               Student ID: & \ThesisAuthorZid \vrule width 0pt depth 10pt
-            \end{tabular}
-            \hfill
-            \begin{tabular}{rl@{}}
-              Project: & \ThesisProject \vrule width 0pt depth 10pt
             \end{tabular}
             \par
 	\end{center}\par

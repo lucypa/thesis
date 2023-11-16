@@ -79,13 +79,13 @@ or device drivers and instead prescribes these services to run as user level pro
 The kernel makes no distinction between such services and applications, which results in the horizontal
 architecture shown in \autoref{f:sel4}. 
 
-seL4 is also a capability based system. A capability is a communicable, unforgeable token that 
+seL4 is also a capability-based system. A capability is a communicable, unforgeable token that 
 references a kernel object with an associated set of access rights. This provides fine grained access control
 and means user-level components must have a capability in order to access an object and means that seL4
 guarantees components only have access to objects, including data, that developers permit them to.
 Additionally, seL4 guarantees ensure full isolation of user-level components, meaning that
 failure of any component is completely contained and will not bring the rest of the system down. 
-Finally, seL4 is the worlds fastest microkernel and performs within 25\%
+Finally, seL4 is the world's fastest microkernel and performs within 25\%
 of the limits imposed by hardware \cite{Mi_LYWC_19}. 
 
 However, the microkernel design can potentially degrade performance as it requires
@@ -101,9 +101,9 @@ system, can quickly add up.
 % Core Platform
 \section{The seL4 microkit}
 The seL4 microkit, formerly known as the seL4 Core Platform,
-is an operating system framework on seL4 with minimal abstractions over seL4 low level
+is an operating system framework on seL4 with minimal abstractions over seL4 low-level
 objects \cite{Heiser_PCVL_22}. It aims to ease the development process of applications on seL4 by abstracting over
-architecture specific details as well as seL4's low level API. Microkit trades generality for simplicity and 
+architecture-specific details as well as seL4's low-level API. Microkit trades generality for simplicity and 
 restricts systems to a predominantly static architecture. This means components are fixed at build time. 
 The abstractions are:
 \begin{enumerate}

@@ -13,7 +13,7 @@ and the system comprises of the following PDs:
     \item ARP Component
     \item Timer Driver
     \item 1 Rx Copy Component per Client application
-    \item 1 or more Client applications as specified in each benchmark. 
+    \item 1 or more UDP Client applications as specified in each benchmark. 
         The clients use lwIP \cite{Dunkels_01} as an IP stack library for network packet processing. 
     \item (only as specified) Tx Copy Component
 \end{enumerate}
@@ -24,22 +24,94 @@ connected to the same switch as our test system,
 and counts the number of successful replies from the target system to measure the achieved throughput and latencies.
 All benchmarks use a sample size of 200,000 packets unless otherwise specified. 
 
+For some benchmarks, we purposely overload our echo applications. A typical networking system would
+perform some computation on incoming data, such as a HTTP web server, which would need to fetch web pages from
+memory to process incoming HTTP requests. Although developing such a test scenario is out of scope for this thesis,
+we still want to test our framework under high loads where the CPU cannot keep up with the traffic to ascertain the absence
+of a performance collapse, as well as ensuring that the system abides by any policy implemented in a multi-client set up. 
+We alter our echo application to perform 10 additional data copies and checksum calculations where specified.
+
+We also compare some echo server configurations against a Linux system (version 6.1.1) on the same hardware. 
+We use a simple user-level application which reads and then writes all packets immediately back using the socket API. 
+In order to determine the CPU utilisation of both systems, we run an idle thread on each core
+at low priority to count the number of idle cycles of that core. 
+
 For all asymmetric client applications, we implement our own custom benchmarking applications to run on an Intel Xeon W-1250
 running at 3.3 Ghz, with 64GB RAM and equipped with a 10Gbps NIC. For our transmit-dominant client, our benchmarking
 application receives packets using \emph{recv()} and records start and stop time to determine the total transmitted
 throughput. For our receive-dominant client, our benchmarking application transmits packets using \emph{send()} and
 we count the number of successfully received packets by the client itself to determine the total received throughput.
 
-We also compare some echo server configurations against a Linux system (version 6.1.1) on the same hardware. 
-We use a simple user level application which reads and then writes all packets immediately back using the socket API. 
-In order to determine the CPU utilisation of both systems, we run an idle thread on each core
-at low priority to count the number of idle cycles of that core. 
+\section{Single Client Performance}
+
+We first establish a baseline for our system by measuring the networking performance of a single echo server application. 
+We also compare against a Linux system and can already establish that our design outperforms a typical monolithic set up 
+for simple echo servers. 
+
+\noindent\begin{figure}[H]
+    \centering
+	\begin{multicols}{2}
+		\begin{subfigure}[b]{0.45\textwidth}
+        \centering
+        \includegraphics[width=1.2\textwidth]{5comp.eps}
+        \caption{Linux vs seL4 Networking Performance}
+        \label{f:perf}
+    \end{subfigure}\qquad
+    \begin{subfigure}[b]{0.45\textwidth}
+        \centering
+        \vspace{0.15cm}
+        \includegraphics[width=1\textwidth]{latency.eps}
+        \caption{Linux vs seL4 Networking Latencies}
+        \label{f:perf_latencies}
+    \end{subfigure}
+\end{multicols}
+\end{figure}
+
+\autoref{f:perf} compares the performance (achieved throughput and CPU utilisation over applied load) of both systems. 
+We can see that the seL4 based system's throughput scales with applied load and manages to saturate the wire, while
+Linux scales linearly to about 650 Mb/s and then plateaus. When comparing the CPU utilisation of both systems, we
+can see that the reason behind this plateau in throughput is because Linux uses significantly more CPU cycles 
+to handle a given load than the seL4 based system. Furthermore, the CPU utilisation of our system also scales 
+sub-linearly with increasing load which indicates efficient batching.
+
+\autoref{f:perf_latencies} compares the round trip time (RTT) latency with standard deviations over applied load of both systems. The latency measured
+is the median result taken from a sample size of 200,000 packets. We can see that the sDDF demonstrates a much faster round trip time over Linux, 
+and, unlike Linux, the round trip time does not blow up as the system becomes saturated. 
 
 \section{Asymmetric Client Applications}
 
-Our asymmetric client applications demand significantly more throughput in one direction compared to the 
-other. We implement each of the client applications as per \autoref{s:client_apps}.
-We measure the total received throughput by a receive-dominant application (Rx Mostly), the
+Now that we can support asymmetric traffic in the client application, we implement simple example applications that emulate different
+applications that could be deployed on a real system. We wish to test applications with different requirements: 
+an application with higher transmit demands and minimal incoming traffic, an application with higher receive demands and minimal outgoing traffic
+and finally, an application that initiates communication before transmitting large amounts of data.
+
+\subsection{Transmit dominant application}\label{s:transmit_dom}
+We implement a simple client application that transmits 10,000 UDP packets, of 1472 bytes each, for every UDP packet received.
+Ethernet maximum transmission unit is 1518 bytes, which leaves a maximum of 1472 bytes in payload once you account for 14 bytes
+in Ethernet headers and 32 bytes for UDP/IP headers. 
+In order to interface with lwIP to initiate additional transmits, we first allocate a \texttt{pbuf}, and write 1472 bytes of data
+to the \texttt{pbuf}'s payload. As \texttt{pbuf}s are allocated from a memory pool, they can also run out. Should this occur, we temporarily
+stop creating transmit requests and store the number of packets we have already sent so we can transmit the rest once more 
+memory has freed up. The bottleneck on memory availability for lwIP \texttt{pbuf}s occurs because \texttt{pbuf}s are queued while the application
+waits for more transmit buffers as outlined above. Thus, when transmit buffers become available, so to does more memory for
+\texttt{pbuf}s. We can thus resume transmitting once the transmit multiplexer has notified the application that more
+transmit buffers are available. The benefit of temporarily pausing creating transmit requests is that it also ensures the application
+is available to process any incoming traffic in the interim. 
+
+\subsection{Receive dominant application}
+We also implement a simple receive dominant client application that for every 10,000 UDP packets received, it transmits a single one.
+This application is much simpler to implement as all memory management is already dealt with so we just adapt the echo server to 
+only echo every 10,000th packet.\\
+
+\subsection{Client Initiated Transmit}
+Not all networking devices act as servers that only react to incoming traffic. A common use case of a non-reactive application is a 
+web client which initiates network communication with another networking device. To test such a scenario, we implement another client
+application which first initiates a handshake with another device, then transmits 1,000,000 packets. The initial handshake is there to 
+ensure the external benchmarking application is ready to receive all incoming packets. We interface with lwIP as described
+in \autoref{s:transmit_dom}.
+
+\subsection{Results}
+We now measure the total received throughput by a receive-dominant application (Rx Mostly), the
 transmitted throughput by a transmit-dominant application (Tx Mostly) and the transmitted throughput
 of a client-initiated transmit application (Tx Initiated) and compare these tests against the achieved
 throughput of the echo server. 
@@ -47,28 +119,31 @@ throughput of the echo server.
 \vspace{0.5cm}
 \begin{figure}[h]
     \centering
-    \includegraphics[width=0.6\textwidth]{asym.pdf}
-    \caption{Networking Performance of Different Client Applications}
+    \includegraphics[width=0.6\textwidth]{asym.eps}
+    \caption{Networking performance of different client applications.}
     \label{f:asym}
 \end{figure}
 
 \autoref{f:asym} shows the measured throughput as well as the CPU utilisation of each test application. 
 Compared with our echo benchmarks, our asymmetric applications both utilise 50\% less CPU for 80+\% of the
 throughput. While we would be able to achieve higher throughput in these examples by receiving/sending
-more than 10,000 packets for every packet in the other direction, this would defeat the purpose of these examples.
+more than 10,000 packets for every packet in the other direction, this would defeat the purpose of these examples
+as we are only wanting to test asymmetric traffic as opposed to uni-directional.
 From both of these results, we can conclude our system is able to cope well with asymmetric UDP traffic. 
 In our client initiated benchmark, we are able to achieve near wire speed with less than 40\% CPU. This is inline
 with our expectations compared to our echo benchmarks, given this system has half the workload with no incoming
 packets. Although these tests are fairly simple, they provide a good sanity check to confirm our system can 
 keep up with different workloads and present a good starting point for developing more complex workloads in the future.
 
-\section{Multi-client systems}
+\section{Single Core, Multi-client systems}
 
 Our design has a large number of different parameters to experiment with, including multiplexer
 policies, queue sizes and the scheduling parameters of client applications running on the system. 
 We select a small variety of example systems to evaluate our different policy designs. We evaluate
 these systems with two separate ipbench instances running on different clusters sending UDP packets
-at the same time to their respective clients.
+at the same time to their respective clients. The order in which they arrive at our system entirely
+depends on the order in which packets arrive at the network switch connecting our system to the clusters
+running ipbench. 
 
 We start first with evaluating single core configurations running two echo server applications. 
 Each system comprises of an Ethernet driver, Rx Mux, Tx Mux, 2 copy components (1 for client A, 1 for client B) 
@@ -78,8 +153,10 @@ will be invoked as soon as it is signalled by either client. We instead first ev
 responds to the client that signalled it, and enforce policy through our system design. We also evaluate our
 bandwidth limited multiplexer on its ability to efficiently enforce different bandwidth limits for different clients.
 
+\subsection{Enforcing Policy through System Design}
 We first evaluate a system where both clients run at equal priority, with their respective copy components at 
 equal, higher priority than their client, and both clients have a queue size of 512 for all interfacing queues.
+We rely on the kernel scheduler to ensure fairness and that clients are scheduled in round robin order.
 
 \noindent\begin{figure}[H]
     \centering
@@ -87,13 +164,13 @@ equal, higher priority than their client, and both clients have a queue size of 
 		\begin{subfigure}[b]{0.45\textwidth}
         \centering
         \includegraphics[width=1.2\textwidth]{AB.eps}
-        \caption{Networking Performance of Two Echo Servers at Equal Priorities}
+        \caption{Networking performance of two echo servers at equal priorities.}
         \label{f:AB}
     \end{subfigure}\qquad
     \begin{subfigure}[b]{0.45\textwidth}
         \centering
         \includegraphics[width=1.2\textwidth]{AB_RxU16.eps}
-        \caption{Networking Performance of Two Echo Servers at Equal Priorities, with limited RxU Queue of Client B}
+        \caption{Networking performance of two echo servers at equal priorities, with limited RxU queue of client B.}
         \label{f:AB_Rx16}
     \end{subfigure}
 \end{multicols}
@@ -106,13 +183,29 @@ We now limit the RxU queue between the Rx Mux and the copy component of client B
 the impact this will have on client B's throughput. \autoref{f:AB_Rx16} shows the resulting network performance.
 Client A still achieves the requested throughput but client B is limited to 400Mbps. This is because the RxU queue
 to client B will become full much sooner, causing the Rx Mux to discard subsequent packets for client B and thus
-limiting the total throughput available to client B. 
+limiting the total throughput available to client B.\\
 
 We now incorporate different priorities to our system and measure the impact this has on each clients
 achieved performance. We reduce both client B and its copy component to lower priority than client A. 
 Thus the priorities are ordered as follows:\\ 
 
-\centerline{Driver \(>\) Tx Mux  \(>\) Rx Mux \(>\) ARP \(=\) Copier of client A \(>\) client A \(>\) Copier of client B \(>\) client B.}
+\begin{minipage}{\textwidth}
+\begin{itemize}
+    \item[7.] Driver
+    \item[6.] Tx Mux
+    \item[5.] Rx Mux
+    \item[4.] ARP
+    \item[4.] Copier of client A
+    \item[3.] Client A
+    \item[2.] Copier of client B
+    \item[1.] Client B
+\end{itemize}
+
+\begin{tikzpicture}[overlay]
+    \tikzset{my arrow/.style={draw=gray!, single arrow, minimum height=5.5cm, rotate =270, }}
+    \node at (6,4) [my arrow] {\rotatebox{360}{Highest to Lowest Priority}};
+\end{tikzpicture}
+\end{minipage}
 
 We set all queue sizes to be equal. 
 
@@ -122,29 +215,29 @@ We set all queue sizes to be equal.
 		\begin{subfigure}[b]{0.45\textwidth}
         \centering
         \includegraphics[width=1.2\textwidth]{AgtB_RxU32.eps}
-        \caption{Throughput Achieved by each Client}
+        \caption{Throughput achieved by each client.}
         \label{f:AgtB_RxU32_xput}
     \end{subfigure}\qquad
     \begin{subfigure}[b]{0.45\textwidth}
         \vspace{39pt}
         \centering
         \includegraphics[width=1.2\textwidth]{AgtB_RxU32_latency.eps}
-        \caption{Median Latencies for each Client}
+        \caption{Median latencies for each client.}
         \label{f:AgtB_RxU32_latency}
     \end{subfigure}
 \end{multicols}
-\caption{Networking Performance of Two Echo Servers at Different Priorities}
+\caption{Networking performance of two echo servers at different priorities.}
 \label{f:AgtB_RxU32}
 \end{figure}
 
 We see in \autoref{f:AgtB_RxU32_xput} the throughput of the lower priority client remains unaffected as there isn't enough
-contention on the CPU to limit this clients CPU bandwidth and both clients achieve their requested load.
+contention on the CPU to limit this client's CPU bandwidth and both clients achieve their requested load.
 However, the latencies are affected by this. \autoref{f:AgtB_RxU32_latency} shows the median round trip time (RTT)
 for each client. Client A achieves lower latencies than client B as it is running
 at higher priority and thus is scheduled to run first.
 
 If there was more contention for the CPU, then we would expect the priority assignment of each client to have an effect
-on their achieved throughput. We now add unnecessary overhead to each packets round trip to simulate an environment where
+on their achieved throughput. We now add unnecessary overhead to each packet's round trip to simulate an environment where
 this is the case. We have each client copy each packet and calculate a checksum 10 times as per \autoref{s:compute_heavy}. 
 
 \noindent\begin{figure}[H]
@@ -153,17 +246,17 @@ this is the case. We have each client copy each packet and calculate a checksum 
 		\begin{subfigure}[b]{0.45\textwidth}
         \centering
         \includegraphics[width=1.2\textwidth]{AgtB_overload.eps}
-        \caption{Equal Queue Sizes}
+        \caption{Equal queue sizes.}
         \label{f:AgtB_overload}
     \end{subfigure}\qquad
     \begin{subfigure}[b]{0.45\textwidth}
         \centering
         \includegraphics[width=1.2\textwidth]{AgtB_RxU32_overload.eps}
-        \caption{Limit RxU Queue of Client B to 32}
+        \caption{Limit RxU queue of client B to 32.}
         \label{f:AgtB_RxU32_overload}
     \end{subfigure}
 \end{multicols}
-\caption{Networking Performance of Two Overloaded Echo Servers at Different Priorities}
+\caption{Networking performance of two overloaded echo servers at different priorities.}
 \label{f:AgtB_od}
 \end{figure}
 
@@ -176,7 +269,7 @@ to 32 to prevent this and ensure there are adequate Rx buffers available to high
 system still becomes overloaded at 400Mbps. However, client A is now able to achieve its requested load as client B's available
 Rx throughput is limited. \\
 
-The results all indicate that limiting a clients queues will limit its available throughput. We can use this property to implement 
+The results all indicate that limiting a client's queues will limit its available throughput. We can use this property to implement 
 a bandwidth-limited policy in the system. We now limit the RxU queue between the Mux and Copier of client B to just 16, and also
 limit the TxU queue between the Mux and client B to 16. Client B and its Copier still run at lower priority than client A, and both
 clients are just simple echo servers (with no additional overload).
@@ -184,7 +277,7 @@ clients are just simple echo servers (with no additional overload).
 \begin{figure}[h]
     \centering
     \includegraphics[width=8cm]{AgtB_RxTxU16.eps}
-    \caption{Networking Performance of Two Echo Servers with Limited Queues to Client B}
+    \caption{Networking performance of two echo servers with limited queues to client B.}
     \label{f:AgtB_RxTxU16}
 \end{figure}
 
@@ -192,15 +285,35 @@ clients are just simple echo servers (with no additional overload).
 to just 200Mbps. The total CPU load is also reduced compared to the system without any queue limits, indicating less load on 
 the limited client.
 
+We now take a closer look at how limiting a clients Tx queues impacts its available throughput. We benchmark a single 
+echo client for maximum throughput, and vary the size of both the clients TxU and TxF queues. 
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=8cm]{queue_size.eps}
+    \caption{Impact of queue sizes on networking performance.}
+    \label{f:queue_sizes}
+\end{figure}
+
+\autoref{f:queue_sizes} shows the throughput achieved and CPU utilisation against the increasing queue sizes. Both 
+measurements increase dramatically before plateauing. Notably, there is a slight performance collapse in CPU utilisation 
+while throughput increases as the queue size doubles from 64 to 128. This is because a limited transmit queue
+for an echo application causes incoming packets to be potentially processed by the driver and multiplexer before 
+being discarded as the client's RxU queue is full.
+This occurs in echo applications due to a shortage of transmit buffers stalling a clients ability to process packets. The
+result is that some excess work is done on packets that get discarded, leading to a higher average cycle cost per packet. 
+Ultimately, despite this overhead, we see that limiting a clients transmit queues can effectively limit the available transmit
+throughput to that client, and with a queue size of 128, a client is able to achieve wire speed.\\
+
 \subsection{Bandwidth-limited Tx Multiplexer}
 
-We can also limit clients available bandwidth using policy in the Tx Mux. We evaluate \autoref{s:bandwidth} with two echo servers,
+We can also limit client's available bandwidth using policy in the Tx Mux. We evaluate \autoref{s:bandwidth} with two echo servers,
 running at equal priority and with equal queue sizes, and limit client B to just 100Mbps in the Tx Mux. Client A is not limited.
 
 \begin{figure}[H]
     \centering
     \includegraphics[width=8cm]{Tx_Limited.eps}
-    \caption{Networking Performance of Two Echo Servers with Bandwidth-Limited Multiplexer}
+    \caption{Networking performance of two echo servers with bandwidth-limited multiplexer.}
     \label{f:Tx_Limited}
 \end{figure}
 
@@ -221,7 +334,8 @@ of one another, thus requiring further policy in the multiplexer.
 Scaling to multi-core will incur overhead from two separate causes. Firstly, seL4 configured with symmetric multi-processing (SMP) increases
 the cost of every kernel invocation. This is not only due to the cost of acquiring the kernel lock, but also because the SMP kernel is
 less optimised and some fast paths do not apply. Secondly, inter-core communication costs significantly more than intra-core due to the addition of 
-inter-processor interrupts (IPI) for inter-core signalling and cache-line bouncing from any shared data. While detailed analysis of these overheads is left for future work, in order to properly
+inter-processor interrupts (IPI) for inter-core signalling and cache-line bouncing from any shared data. While detailed analysis of
+these overheads is left for future work, in order to properly
 analyse how our system performs on multi-core configurations, we first establish a baseline of these costs. We first evaluate two separate configurations
 using the SMP kernel: pinning every component to a single core and splitting the load across two cores (out of an available 4). 
 We compare these to our baseline without the SMP kernel. Each system is comprised of 5 PDs: an Ethernet driver, RX Mux, 
@@ -232,23 +346,24 @@ the user-space echo server application is pinned to one core, and we allow the L
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.9\textwidth]{multicore.pdf}
-    \caption{Networking Performance Comparison of Multi-core Systems}
+    \caption{Networking performance comparison of multi-core systems.}
     \label{f:multicore}
 \end{figure}
 
 \autoref{f:multicore} shows the achieved throughput against the CPU utilisation for our 3 different seL4-based systems and Linux. 
-As expected, each of our 3 seL4-based systems achieve wire speed (the paler, solid green lines are directly behind the dark green line)
+As expected, each of our 3 seL4-based systems achieve wire speed (the green and red lines are directly behind the blue line)
 whereas the Linux system maxes out at just 800Mbps. All seL4 systems also outperform the Linux system, which utilises more than
 1.6 cores for 800Mbps. Further investigation into the Linux system reveals the core running the echo server is maxed out at 
 this point, and hence why the system can't achieve higher throughput. \\
+
 However, the total CPU utilisation of each of our seL4 systems differs substantially. 
-The difference between the single core CPU load (dotted, pale green line) and the single core SMP CPU load (dotted mid-green line) 
-outlines the overhead of using the SMP kernel. To achieve wire speed, the normal kernel configuration utilises 82\% of the CPU, whereas
-the SMP kernel configuration utilises 92\% of the CPU; about 12\% overhead. While this is substantially higher than expected given
+The difference between the single core CPU load (dotted green line) and the single core SMP CPU load (dotted red line) 
+outlines the overhead of using the SMP kernel. To achieve 100Mbps, the normal kernel configuration utilises 13.5\% of the CPU, whereas
+the SMP kernel configuration utilises 29.9\% of the CPU; about 121\% overhead. While this is substantially higher than expected given
 there is no inter-core communication for either of these configurations, detailed
 exploration of these overheads is left for future work. 
-Comparing the single core SMP CPU load against the two core SMP CPU load (dotted dark green line) outlines the overheads introduced by
-inter-core communication between our 5 PDs; just over 4\% at wire speed. Note that not all system calls will introduce IPIs in
+Comparing the single core SMP CPU load against the two core SMP CPU load (dotted blue line) outlines the overheads introduced by
+inter-core communication between our 5 PDs; just over 20\% at 100Mbps. Note that not all system calls will introduce IPIs in
 this configuration, as, for example, the Copy component only communicates intra-core with the Rx Mux and Client. \\
 
 Ultimately, distributing PDs across different cores will incur different overheads. We explore these overheads with another benchmark
@@ -258,17 +373,19 @@ We test these configurations with the same echo server benchmark with the same 5
 \begin{figure}[H]
     \centering
     \includegraphics[width=10cm]{multicore_distr.eps}
-    \caption{CPU Utilisation with Select Components Isolated on a Separate Core}
+    \caption{CPU utilisation with select components isolated on a separate core.}
     \label{f:multicore_distr}
 \end{figure}
 
 \autoref{f:multicore_distr} shows the results when isolating the driver, Rx Mux, Copier and Client. The yellow lines show the throughput
-and CPU utilisation when the driver is pinned to a separate core. Likewise, the purple for the Rx Mux, the green for the Copier and pink for
-the Client. As expected, each different configuration achieves wire speed but the CPU utilisation of each system differs. Notably, 
+and CPU utilisation when the driver is pinned to a separate core. 
+Likewise, the red for the Client, the blue for the Rx Mux and green for
+the Copier. As expected, each different configuration achieves wire speed but the CPU utilisation of each system differs. Notably, 
 the configuration where the driver is isolated incurs the most overhead, followed closely by the configuration isolating the Rx Mux. This is 
 expected due to the higher number of system calls per packet each of these PDs makes and thus these systems will incur more overheads from
 intra-core signalling and kernel lock contention. Overall, the difference in CPU load of each of these systems is only 4\%, indicating that
 components can be arbitrarily distributed across cores. Ultimately, the optimal allocation for a system is use case dependent.\\
+
 Now we have a baseline evaluation for multi-core systems, we can design simple systems with which to evaluate our other transmit multiplexer
 designs. 
 
@@ -286,7 +403,7 @@ core hosts the Driver, Rx Mux, ARP Component and Tx Mux.
 		\begin{subfigure}[b]{0.45\textwidth}
         \centering
         \includegraphics[width=1.2\textwidth]{Tx_Round_Robin.eps}
-        \caption{Throughput Achieved and CPU Load of Two Echo Servers}
+        \caption{Throughput achieved and CPU load of two echo servers.}
         \label{f:round_robin_mux}
     \end{subfigure}\qquad
     \begin{subfigure}[b]{0.45\textwidth}
@@ -294,11 +411,11 @@ core hosts the Driver, Rx Mux, ARP Component and Tx Mux.
         \centering
         \includegraphics[width=\textwidth]{Tx_Round_Robin_latency.eps}
         \vspace{0.5pt}
-        \caption{Median Latencies of Two Echo Servers}
+        \caption{Median latencies of two echo servers.}
         \label{f:round_robin_mux_latency}
     \end{subfigure}
 \end{multicols}
-\caption{Networking Performance of Two Echo Servers with a Round Robin Multiplexer}
+\caption{Networking performance of two echo servers with a round robin multiplexer}
 \end{figure}
 
 The total achieved throughput as well as that of each client is shown in \autoref{f:round_robin_mux}. As expected, both clients achieve their 
@@ -317,10 +434,10 @@ well as any overheads of the multiplexer itself.
 
 \subsection{Priority-based Tx Multiplexer}
 
-We also evaluate our priority-based Tx Mux using the same system design, where we will instead expect a higher priority client to achieve smaller
+We also evaluate our priority-based Tx Mux using the same system design, where we will instead expect a higher priority client to achieve lower
 latencies. We set up our priority-based Tx Mux implementation to prioritise client A, followed by client B and finally ARP at lowest priority.
 As both clients run on separate cores, their scheduling parameters with respect to one another has no impact and so we allocate them the same
-scheduling priority as one another. Likewise with their copy components, which are higher priority than the client. 
+scheduling priority as one another. Likewise with their copy components, which are higher priority than their client and running on the same core. 
 
 \noindent\begin{figure}[h]
     \centering
@@ -328,7 +445,7 @@ scheduling priority as one another. Likewise with their copy components, which a
 		\begin{subfigure}[b]{0.45\textwidth}
         \centering
         \includegraphics[width=1.2\textwidth]{Tx_Priority.eps}
-        \caption{Throughput Achieved and CPU Load of Two Echo Servers}
+        \caption{Throughput achieved and CPU load of two echo servers.}
         \label{f:priority_mux}
     \end{subfigure}\qquad
     \begin{subfigure}[b]{0.45\textwidth}
@@ -336,11 +453,11 @@ scheduling priority as one another. Likewise with their copy components, which a
         \centering
         \includegraphics[width=\textwidth]{Tx_Priority_latency.eps}
         \vspace{0.5pt}
-        \caption{Median Latencies of Two Echo Servers}
+        \caption{Median latencies of two echo servers.}
         \label{f:priority_latency}
     \end{subfigure}
 \end{multicols}
-\caption{Networking Performance of Two Echo Servers with a Priority-based Multiplexer}
+\caption{Networking performance of two echo servers with a priority-based multiplexer.}
 \end{figure}
 
 Both clients achieve their requested throughput as shown in \autoref{f:priority_mux} and as expected, \autoref{f:priority_latency} shows
@@ -351,27 +468,26 @@ client A over client B.\\
 Furthermore, both our round robin multiplexer and our priority-based multiplexer introduce similar overheads as indicated by their 
 respective CPU utilisation measurements. \\
 
-\newpage
-
 \subsection{Two-threaded Driver}
 For some multi-core systems, the driver could be a performance bottleneck if the core it is running on is saturated. We can offload
-some of the drivers work to another core with our two-threaded driver design. In doing so, we will introduce additional overheads
+some of the driver's work to another core with our two-threaded driver design. In doing so, we will introduce additional overheads
 stemming from an additional context switch per packet, as well as communication between the two driver components required at
 high loads. We first measure these overheads by comparing our single core system with a simple echo server client against the 
 same system with our two threaded driver design. We compare the overall throughput and CPU utilisation of both systems. As 
-our two-threaded driver design is only applicable in multi-core systems, we configure both systems with SMP enabled but 
+our two-threaded driver design only makes sense in multi-core systems, we configure both systems with SMP enabled but 
 initially confine them to a single core.
 
 \begin{figure}[h]
     \centering
     \includegraphics[width=8cm]{2driver_comp.eps}
-    \caption{Performance Comparison of Two Threaded Driver on Multi-core}
+    \caption{Performance comparison of two-threaded driver on multi-core.}
     \label{f:2driver_comp}
 \end{figure}
 
 \autoref{f:2driver_comp} shows the results. Both systems achieve the total requested throughput. The CPU utilisation of our 
 two-threaded driver (pink dotted line) shows that at low throughputs, the overhead is minimal. However, at high loads, we
-see a 6\% increase in CPU load.\\
+see a 6\% increase in CPU load. We hypothesise this overhead is due to the extra notification required between the two 
+driver components when the hardware transmit queue becomes full (an unlikely occurrence at low loads).\\
 
 We now design a system where the two-threaded driver design may be applicable. The driver will only be a bottleneck in a
 multi-core system when the core it is running on is saturated, and there are no other available cores with sufficient bandwidth
@@ -381,10 +497,10 @@ core, along with its copy component, and use our round robin transmit multiplexe
 As our hardware platform only has 4 cores, the driver must share a core with at least one client and 
 its copy component. The core assignment is as follows:
 \begin{itemize}
-    \item[\textbf{Core 0:}] Driver, Copier of client A, client A
-    \item[\textbf{Core 1:}] Rx Mux, Copier of client B, client B
-    \item[\textbf{Core 2:}] Copier of client C, client C
-    \item[\textbf{Core 3:}] Tx Mux, Copier of client D, client D
+    \item[      \textbf{Core 0:}] Driver, Copier of client A, client A
+    \item[      \textbf{Core 1:}] Rx Mux, Copier of client B, client B
+    \item[      \textbf{Core 2:}] Copier of client C, client C
+    \item[      \textbf{Core 3:}] Tx Mux, Copier of client D, client D
 \end{itemize}
 
 We test this system with 4 separate ipbench instances, each sending UDP packets to a client and counting received packets
@@ -393,26 +509,26 @@ to determine throughput achieved by this client. We request up to 250Mbps for ea
 \begin{figure}[h]
     \centering
     \includegraphics[width=8cm]{multicore_overload.eps}
-    \caption{Networking Performance with 4 Clients on Multi-core}
+    \caption{Networking performance with 4 clients on multi-core.}
     \label{f:multicore_overload}
 \end{figure}
 
 \autoref{f:multicore_overload} shows the achieved throughput for each client, as well as the total throughput achieved 
 by the system and the total CPU load. Each client is able to achieve 200Mbps but no more. We now configure this system 
-with our two-threaded driver, and offload some of the drivers work to core 2 to test whether clients are able to 
+with our two-threaded driver, and offload some of the driver's work to core 2 to test whether clients are able to 
 achieve higher load. The core assignment is as follows:
 
 \begin{itemize}
-    \item[\textbf{Core 0:}] IRQ-side Driver, Copier of client A, client A
-    \item[\textbf{Core 1:}] Rx Mux, Copier of client B, client B
-    \item[\textbf{Core 2:}] Client-side Driver, Copier of client C, client C
-    \item[\textbf{Core 3:}] Tx Mux, Copier of client D, client D
+    \item[      \textbf{Core 0:}] IRQ-side Driver, Copier of client A, client A
+    \item[      \textbf{Core 1:}] Rx Mux, Copier of client B, client B
+    \item[      \textbf{Core 2:}] Client-side Driver, Copier of client C, client C
+    \item[      \textbf{Core 3:}] Tx Mux, Copier of client D, client D
 \end{itemize}
 
 \begin{figure}[h]
     \centering
     \includegraphics[width=8cm]{2driver_comp_overload.eps}
-    \caption{Performance Comparison of Two Threaded Driver with 4 Clients on Multi-core}
+    \caption{Performance comparison of two-threaded driver with 4 clients on multi-core.}
     \label{f:2driver_comp_overload}
 \end{figure}
 
@@ -426,21 +542,21 @@ at the same CPU load. We now take a closer look at the CPU utilisation of each c
 	\begin{subfigure}[b]{0.45\textwidth}
         \centering
         \includegraphics[width=1.2\textwidth]{core_analysis_multicore_overload.eps}
-        \caption{Single driver system}
+        \caption{Single driver system.}
         \label{f:core_analysis_mutlicore_overload}
     \end{subfigure}\qquad
     \begin{subfigure}[b]{0.45\textwidth}
         \centering
         \includegraphics[width=1.2\textwidth]{core_analysis_multicore_overload_2driver.eps}
-        \caption{Two-threaded driver system}
+        \caption{Two-threaded driver system.}
         \label{f:core_analysis_mutlicore_overload_2driver}
     \end{subfigure}
 \end{multicols}
-\caption{Core Utilisation of an overloaded 4 Client System }
+\caption{Core utilisation of an overloaded 4 client system.}
 \label{f:core_util_multi}
 \end{figure}
 
-\autoref{f:core_util_multi} shows each cores utilisation against the requested load for both systems. 
+\autoref{f:core_util_multi} shows each core's utilisation against the requested load for both systems. 
 In both systems cores 0, 1 and 3 are all saturated. This tells us that although the driver is a potential
 bottleneck, both the Rx and Tx multiplexers are too. In \autoref{f:core_analysis_mutlicore_overload_2driver}
 we see core 0 has slightly lower utilisation at wire speed compared with
@@ -459,9 +575,9 @@ of this component depends on system design and the threat scenario, we measure t
 added if the component is responsible for all possible tasks listed. These are:
 \begin{itemize}
     \item Ensuring metadata enqueued to the multiplexer is sane.
-    \item Checking outgoing packets are well-formed 
+    \item Checking outgoing packets are well formed 
     \item Copying outgoing packets into a separate region not mapped
-          into the clients address space.
+          into the client's address space.
     \item Interfacing with the multiplexer correctly by incrementing the head/tail pointers as required.
     \item Ignoring any transmit packets from the client that do not abide by the protocols.
 \end{itemize}
@@ -476,7 +592,7 @@ We compare the achieved throughput and CPU utilisation of this system to the sam
 \begin{figure}[h]
     \centering
     \includegraphics[width=10cm]{tx_copy_overhead.eps}
-    \caption{Performance Overhead with Tx Copy Component}
+    \caption{Performance overhead with Tx Copy component.}
     \label{f:tx_copy_overhead}
 \end{figure}
 
@@ -486,19 +602,29 @@ without the additional component. This is about an 18\% overhead. To achieve 958
 Copy component, compared with 82.5\% CPU utilisation without it, thus showing a 17\% increase. This overhead is 
 inline with our expectations as we are comparing systems with 6 and 5 components respectively, thus a 20\% increase
 in component count alone. Of course, this overhead can be reduced depending on the threat model, as some systems might
-rely on the NIC to ensure packets are well-formed, or use the IOMMU to sanitise all buffer addresses.  
+rely on the NIC to ensure packets are well formed, or use the IOMMU to sanitise all buffer addresses.  
 
 \section{Summary}
-Overall, our exploration into asymmetric traffic demonstrates our I/O framework can handle such loads efficiently. 
+
+Overall, our single client echo benchmarks outperform Linux significantly, both in single and multi-core set ups.
+This demonstrates a highly componentised, microkernel-based architecture is a feasible design despite the extra number
+of context switches required. Our exploration into asymmetric traffic demonstrates our framework 
+can handle such loads efficiently.\\
 Our multi-client results indicate the framework design, along with our new multiplexer 
-designs can flexibly implement a variety of different policies that may be required depending on system use-case. However,
-our investigation into multi-core systems has unveiled significant overheads from just enabling the SMP configuration in seL4.
-Thorough investigation of these overheads is left for future work. In spite of such overheads, our design scales
-well to multi-core, and effectively enables high-throughput networking for compute-heavy clients when a 
+designs can flexibly implement a variety of different policies that may be required depending on system use-case.
+However, not all combinations make sense and system design heavily influences inner policies. 
+For example, \autoref{f:AgtB_overload} demonstrated
+that a higher priority client could be starved by a lower priority client without appropriate choice
+of queue size, and simply limiting a clients queue sizes can reduce a clients available throughput.\\
+
+Although our design scales well to multiple clients, our investigation into multi-core systems has 
+unveiled significant overheads from just enabling the SMP configuration in seL4.
+Thorough investigation of these overheads is left for future work. In spite of such overheads, our design can
+be arbitrarily distributed across cores and effectively enables high-throughput networking for compute-heavy clients when a 
 single CPU is insufficient. From our analysis, we conclude our two-threaded driver design is not practical
-due to the overheads outweighing any possible benefit in systems where the driver is a bottleneck in throughput. 
+due to the overheads outweighing any possible benefit in systems where the driver is a bottleneck in throughput.\\
+
 Finally, although a security analysis of our framework reveals a misbehaving client does have the ability to compromise
 the entire transmit path for all clients, these vulnerabilities can be easily eliminated with an additional component between 
 the client and the shared multiplexer. This component introduces acceptable overheads for the stronger security
 guarantees provided, but can also be easily configured for the systems threat scenario and performance requirements. 
-

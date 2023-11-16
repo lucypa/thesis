@@ -5,7 +5,7 @@ set ylabel "Throughput (Mb/s)" offset 1,0,0
 set y2tics border
 set yrange [0:1000]
 set y2range [0:400]
-set xrange [50:250]
+set xrange [0:250]
 set x2range [200:1000]
 set xtics nomirror rotate
 set ytics nomirror
@@ -15,12 +15,12 @@ set tmargin 5.5
 set key outside below 
 set size 1,1.6
 set style line 1 lw 6 lt 1
-set style line 1 lw 6 lt 7 dt 1 lc rgb 0xba34eb
-set style line 2 lw 2 lt 7 ps .5 dt 1 lc rgb 0xba34eb
-set style line 3 lw 2 lt 4 ps .3 dt 3 lc rgb 0xba34eb
-set style line 4 lw 2 lt 7 ps .5 dt 1 lc rgb 0xd99cf0
-set style line 5 lw 2 lt 4 ps .3 dt 3 lc rgb 0xd99cf0
-set style line 6 lw 3 lt 7 dt 3 lc rgb 0xd99cf0
+set style line 1 lw 6 lt 7 dt 1 lc rgb 0xff0000
+set style line 2 lw 4 lt 7 ps .5 dt 1 lc rgb 0xff0000
+set style line 3 lw 2 lt 4 ps .3 dt 3 lc rgb 0xff0000
+set style line 4 lw 2 lt 7 ps .5 dt 1 lc rgb 0x0080ff
+set style line 5 lw 2 lt 4 ps .3 dt 3 lc rgb 0x0080ff
+set style line 6 lw 3 lt 7 dt 3 lc rgb 0x0080ff
 set style line 7 lw 2 lt 6
 set style line 8 lw 2 lt 8
 set term postscript eps enhanced color size 2.5,1.5

@@ -92,7 +92,7 @@ BEGIN {
         ltyp[8] = 8
 	printf "set x2label \"Total Load (Mb/s)\" offset 0,-1,0\nset y2label \"CPU Utilization (%)\" offset -1,0,0\nset xlabel \"Load (Mb/s)\" offset 0,0.5,0\nset ylabel \"Throughput (Mb/s)\" offset 1,0,0\nset y2tics border\n"	
 	print "set yrange [0:1000]"
-	print "set xrange [100:500]"
+	print "set xrange [0:500]"
 	print "set y2range [0:100]"
 	print "set x2range [200:1000]"
         print "set xtics nomirror rotate"

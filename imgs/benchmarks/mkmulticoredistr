@@ -85,6 +85,7 @@ BEGIN {
 	printf "set y2label \"CPU Utilization (%)\" offset -2,0,0\nset xlabel \"Load (Mb/s)\" offset 0,0.7,0\nset ylabel \"Throughput (Mb/s)\" offset 1,0,0\nset y2tics border\n"
 	print "set yrange [0:1100]"
 	print "set y2range [0:110]"
+	print "set xrange [0:1000]"
         print "set xtics nomirror rotate"
         print "set ytics nomirror"
 	print "set bmargin 9"
@@ -93,18 +94,18 @@ BEGIN {
         print "set style line 1 lw 6 lt 1"
 
 	print "set style line 1 lw 6 lt 7 dt 1 lc rgb '0xfccf03'"
-	# Yellow for driver
-	print "set style line 2 lw 2 lt 7 ps .5 dt 1 lc rgb '0xfccf03'"
-	print "set style line 3 lw 2 lt 4 ps .3 dt 3 lc rgb '0xfccf03'"
-	# Purple for rx mux
-	print "set style line 4 lw 2 lt 7 ps .5 dt 1 lc rgb '0xd49fc0'"
-	print "set style line 5 lw 2 lt 4 ps .3 dt 3 lc rgb '0xd49fc0'"
+	# Red for client
+	print "set style line 2 lw 6 lt 7 ps .5 dt 1 lc rgb '0xff0000'"
+	print "set style line 3 lw 6 lt 4 ps .3 dt 3 lc rgb '0xff0000'"
+	# Blue for rx mux
+	print "set style line 4 lw 5 lt 7 ps .5 dt 1 lc rgb '0x0080ff'"
+	print "set style line 5 lw 5 lt 4 ps .3 dt 3 lc rgb '0x0080ff'"
     # Green for copier
-    print "set style line 6 lw 2 lt 7 ps .5 dt 1 lc rgb '0xb1d190'"
-    print "set style line 7 lw 2 lt 4 ps .3 dt 3 lc rgb '0xb1d190'"
-    # Red for client
-	print "set style line 8 lw 2 lt 7 ps .5 dt 1 lc rgb '0xc98189'"
-	print "set style line 9 lw 2 lt 4 ps .3 dt 3 lc rgb '0xc98189'"
+    print "set style line 6 lw 4 lt 7 ps .5 dt 1 lc rgb '0x008000'"
+    print "set style line 7 lw 4 lt 4 ps .3 dt 3 lc rgb '0x008000'"
+	# Yellow for driver
+	print "set style line 8 lw 2 lt 7 ps .5 dt 1 lc rgb '0xfccf03'"
+	print "set style line 9 lw 2 lt 4 ps .3 dt 3 lc rgb '0xfccf03'"
 
 	print "set style line 13 lw 2 lt 6"
 	print "set style line 14 lw 2 lt 8"
