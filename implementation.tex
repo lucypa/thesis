@@ -18,8 +18,8 @@ We present our pseudo code designs for how each multiplexer process transmit pac
 the client. All multiplexers return free buffers from the driver to their respective 
 clients in the same FIFO order and hence this function has been omitted for brevity. 
 
-\subsection{Round Robin Policy}
-We implement a round robin policy by processing a single client's transmit request at a time.
+\subsection{Round-robin Policy}
+We implement a round-robin policy by processing a single client's transmit request at a time.
 This is done in a loop to ensure we process any batched requests as outlined in \autoref{l:roundrobin}.
 
 \begin{figure} [H]
@@ -47,7 +47,7 @@ void process_transmit_ready() {
   }
 }
 \end{minted}
-\caption{Transmit Round Robin Policy}
+\caption{Transmit round-robin Policy}
 \label{l:roundrobin}
 \end{figure}
 
@@ -87,7 +87,7 @@ void process_transmit_ready() {
 \label{l:prioritybased}
 \end{figure}
 
-\subsection{Bandwidth Limited Policy}\label{s:bandwidth}
+\subsection{Bandwidth-limited Policy}\label{s:bandwidth}
 
 We implement a bandwidth-limited policy in \autoref{l:bandwidth}. The multiplexer will 
 process client transmit requests, calculating how much bandwidth the client has used based on
@@ -125,7 +125,7 @@ void process_transmit_ready() {
   }
 }
 \end{minted}
-\caption{Transmit Bandwidth Limited Policy}
+\caption{Transmit Bandwidth-limited Policy}
 \label{l:bandwidth}
 \end{figure}
 
@@ -146,15 +146,15 @@ void set_timeout(uint64_t micros) {
 \end{figure}
 
 The timer driver is a high priority, passive server. It receives interrupts from the device,
-and forwards these by notifying the appropriate client or multiplexer. The bandwidth limited
-multiplexer reacts to such notifications by clearing the appropriate clients timeout and
+and forwards these by notifying the appropriate client or multiplexer. The bandwidth-limited
+multiplexer reacts to such notifications by clearing the appropriate client's timeout and
 recalling process\_transmit\_ready. Note that this implementation could be made more efficient
 by mapping the timer registers read-only into the multiplexer's address space. This would remove
 the need for a frequent system call to get the time. However, these implementations are 
 meant only as example prototype rather than a prescribed implementation and further optimisations
 have been left for use-case specific implementations. \\
 
-This bandwidth-limited policy can also be combined with the round robin or priority based policy
+This bandwidth-limited policy can also be combined with the round-robin or priority based policy
 to order each clients requests. Such a case would be useful in reducing the 
 transmit latencies of latency sensitive applications.\\ 
 

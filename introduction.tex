@@ -92,11 +92,22 @@ that guarantees correct isolation of user level components \cite{Klein_AEMSKH_14
 However, the microkernel design can lead to performance
 degradation of I/O systems due to the inherent number of extra context switches required. The seL4 Device Driver
 Framework (sDDF), introduced in \autoref{ch:sddf}, is a simple I/O framework that minimises this overhead
-and provides interfaces and protocols for developing performant networking systems \cite{Parker_22:sddf}. It provides
-a strong starting point from which we will base our solution.
-However, the sDDF, as it stands, does not support more than a simple echo server application, and is confined 
-to a single core platform. \autoref{ch:design} outlines our design to expand the sDDF to flexibly and securely 
-support multiple client applications and how such a design could scale to multi-core systems. We outline implementation
-details in \autoref{ch:implementation} and evaluate our designs in \autoref{ch:evaluation}. To conclude, we highlight
+and provides interfaces and protocols for developing performant networking systems \cite{Parker_22:sddf}. The sDDF
+is characterised by a strong separation of concerns, where each task in the pipeline is handled by a simple, single-threaded
+component. Components communicate asynchronously via shared memory and seL4 notifications. As it stands, the sDDF
+already supports a statically defined, minimal networking system. However, it does not support than a simple echo 
+server application, and is confined to a single core platform. \autoref{ch:design} outlines our design to expand
+the sDDF to flexibly and securely support multiple client applications using plugin-compatible
+multiplexers each implementing a single, simple policy. We also minimally adapt the lwIP \cite{Dunkels_01} network
+stack library to better integrate with the event-driven programming model used by the sDDF and support 
+different networking demands of potential client applications. Additionally, we present an alternative model for
+device drivers allowing some concurrent execution with the potential to scale efficiently to multi-core systems.
+We evaluate all these designs in \autoref{ch:evaluation}. We uncover that despite the high number of context switches
+required, seL4 networking-based systems significantly outperform networking-based systems on Linux using the socket API.
+Our multi-client performance benchmarks demonstrate how system designers can implement different policies with our
+new multiplexer designs as well as configuring the overall system design. We evaluate how the networking system can
+scale to multi-core systems, unveiling significant overheads in the seL4 multi-core kernel but demonstrating that
+the sDDF can be arbitrarily distributed across cores and effectively enables high-throughput networking for
+compute-heavy clients when a single CPU is insufficient. To conclude, we highlight
 the current limitations of the framework and directions for future work. 
 

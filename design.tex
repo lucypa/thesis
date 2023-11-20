@@ -85,7 +85,7 @@ processed. This design removes the need for policy on processing free buffers. \
 All incoming requests from clients are processed subject to a particular policy. 
 We implement 3 different policies in \autoref{ch:implementation}:
 \begin{enumerate}
-    \item \textbf{Round robin}: whereby the multiplexer processes an outgoing request one at a time, alternating between clients.
+    \item \textbf{Round-robin}: whereby the multiplexer processes an outgoing request one at a time, alternating between clients.
     \item \textbf{Priority-based}: whereby the multiplexer prioritises client requests as per their given priority, processing as many
     requests as available for the highest priority client possible. 
     \item \textbf{Throughput-based}: whereby the multiplexer limits the available outgoing bandwidth per client at a time.
@@ -103,7 +103,7 @@ all client transmit buffers. This ensures the multiplexer will not become blocke
 and thus disrupt the policy implemented to process client requests. \\ 
 
 \subsection{Enforcing Policy Through System Design}
-Depending on the greater system design, we expect some transmit policies to not work.
+Depending on the greater system design, we expect some transmit policies not to work.
 For example, given a single-core configuration, the higher priority multiplexer will
 always be invoked as soon as a client has made a request to transmit. This means that
 we can assume any other clients do not yet wish to transmit, or have not yet had the
@@ -111,17 +111,32 @@ opportunity to run to make a request. Therefore, the multiplexer does not need t
 consider all the client queues when invoked and can just service requests made
 by the client that signalled. To enforce policy on multiple clients in such a scenario,
 we rely on appropriate choices of client queue sizes and the scheduling parameters
-of each client. For example, to enforce a round robin policy on two clients, we run both clients
-at equal priorities, and limit their TxU queues to just one. This ensures
-that each client will be stalled until their single request has been processed, and
+of each client. For example, to enforce a round-robin policy on two clients, we run both clients
+at equal priorities, and limit their TxU queues to one. This ensures
+that each client will be stalled until its single request has been processed, and
 another client will have the opportunity to run in the interim. The multiplexer will
-then only process a single request per client at a time, though at the detriment to performance.\\
+then only process a single request per client at a time, though at the detriment of performance.\\
 Similarly, should we require a priority based policy, we can assign appropriate priorities
 to the clients scheduling parameters and limit lower priority client's queue sizes, thus relying on the scheduling
 of the system to enforce this policy.\\
 Finally, we can limit the client's queue sizes on both the transmit and/or receive paths
 to limit the amount of either transmit and/or receive throughput available to each client.
 Appropriate sizes can be selected based on experiments discussed in \autoref{ch:evaluation}.\\ 
+
+\subsection{Design Constraints}
+
+Our multiplexer design has introduced 2 small constraints that will impose on system design. To summarise,
+these are:
+
+\begin{itemize}
+    \item All client's RxF queues must be the same size or greater than the total number of receive buffers circulating in the system. 
+        This is to prevent a client from becoming blocked, waiting for this queue to be processed and thus requiring further policy 
+        in the Rx multiplexer to handle free buffers. This constraint has no impact on the implementation, but must be considered 
+        when configuring queue sizes across the system. 
+    \item All client's TxF queues must be the same size or greater than the number of Tx buffers belonging to that client. If there is a 
+        Tx copy component in the system, this applies to the TxF queues between client copiers and the Tx multiplexer. 
+        This is to prevent a client's TxF queue from becoming full, and thus blocking the multiplexer when processing free buffers. 
+\end{itemize}
 
 \section{Broadcast Protocols}\label{s:arp}
 Some protocols broadcast traffic to all systems by addressing the
@@ -142,7 +157,7 @@ simultaneously and thus how many buffers should be available in all client side
 RxF queues at all times. If there are no any free buffers available for ARP, then
 a client will not be able to receive any IPv4 traffic.\\
 Instead, we implement a separate component to handle broadcast traffic. It interfaces
-with the multiplexers the same as any other client, as shown in \autoref{f:arp}. 
+with the multiplexers in the same way as any other client, as shown in \autoref{f:arp}. 
 
 \begin{figure}[h]
     \centering
@@ -155,7 +170,8 @@ with the multiplexers the same as any other client, as shown in \autoref{f:arp}.
 A separate ARP component only requires the minimal functionality to respond to 
 the Address Resolution Protocol on behalf of any client applications running on
 the system. In keeping with the design goals, this component will be kept 
-very simple in the aims of enabling formal verification. Therefore we consider
+very simple with the aim of enabling formal verification. Consequently, such a goal 
+also makes this component easy for developers to reason about and debug. Therefore we consider
 this component to be trusted to maintain the integrity of its shared queues with
 the multiplexer components as well as interfacing with clients and responding
 correctly to ARP on behalf of the clients. \\
@@ -188,7 +204,7 @@ The result of this design means that if there isn't a transmit buffer available 
 packet is dropped and the \texttt{pbuf}s are freed. While this is an acceptable outcome, it unfortunately means that a significant
 amount of packet processing is then wasted. In order to combat this on the simple echo server and reduce
 wasted cycles, packets are only
-processed on the receive path depending on the availability of transmit buffers. This stalls the client application
+processed on the receive path if transmit buffers are available. This stalls the client application
 until it receives a notification that more transmit buffers are available. \\
 
 However, this solution is very limiting
@@ -219,6 +235,7 @@ restriction on the receive path, sets up the client application to no longer exp
 applications with asymmetric traffic to evaluate how our framework copes with such loads in \autoref{ch:evaluation}.
 
 \section{Multi-core Systems}\label{s:multicore}
+
 The sDDF is implemented on top of the seL4 microkit, which already supports multicore systems
 and so there are minimal changes required
 to achieve this. As the transport layer is lock-free and system calls are kept to a minimum, the framework itself 
@@ -261,17 +278,17 @@ We first analyse these overheads in \autoref{ch:evaluation} before concluding wh
 \section{Security}\label{s:security}
 Component communication in the sDDF relies on shared memory and asynchronous notifications. While asynchronous communication
 has considerable performance benefits (see \autoref{ch:related_work}), it means we trust each component to abide by the protocol. 
-Future work, left out of scope of this thesis, will explore verifying all trusted components. However, this excludes the client
-applications. Our design should ensure a 
-misbehaving client application does not have the ability to interfere with other clients and/or the rest of the system.\\
+Future work, left out of scope of this thesis, will explore verifying all trusted components. However, the system cannot
+trust application code. Our design should ensure a 
+misbehaving client application does not have the ability to interfere with other clients or the rest of the system.\\
 
 Clients receive data by dequeuing metadata, including buffer addresses, from a shared ring buffer, and transmit data by enqueuing such metadata. 
-However, as these shared ring buffers are used by the components on either side of the client (e.g.. a multiplexer), we currently 
+However, as these shared ring buffers are used by the components on either side of the client (e.g. a multiplexer), we currently 
 trust the client to maintain the integrity of the queues, and not write to buffers during DMA (i.e. once a packet has been enqueued
 for transmit and before the buffer returns in the free queue). Specifically, we trust the client to:
 \begin{enumerate}
     \item Update the tail pointer when dequeuing incoming packets from its RxU queue.\\
-    While the rest of this queue can be mapped in as read only to the client, if the client does not correctly increment this pointer,
+    While the rest of this queue can be mapped in as read-only to the client, if the client does not correctly increment this pointer,
     the copy component will incorrectly see this queue as full/empty and potentially could either write over client's data or stop
     enqueuing new packets. As each client application has its own copy component, this potential vulnerability is isolated only to
     the misbehaving client.
@@ -285,7 +302,7 @@ for transmit and before the buffer returns in the free queue). Specifically, we 
     aren't enough free buffers to copy into, the copy component may not wake up. This could block any receive traffic to the misbehaving client
     but will not affect other components.\\
     Alternatively, if a client signals its copy component unnecessarily, this has the potential to increase networking latency. 
-    As the copy component runs at higher priority than it's client, a signal from the client to its copy component will cause an immediate context
+    As the copy component runs at higher priority than its client, a signal from the client to its copy component will cause an immediate context
     switch. This has the potential to also affect other applications that run at equal or lower priority than the copy component on 
     the same CPU, as they may delayed to be scheduled as a result. seL4 already provides mechanisms to protect against such a scenario in 
     scheduling context objects. We can limit copy components' scheduling parameters such that they will not monopolise the CPU. Then, should 
@@ -294,7 +311,7 @@ for transmit and before the buffer returns in the free queue). Specifically, we 
     will depend on greater system design, in particular, the scheduling parameters of all other applications running on the same CPU.
     \item No longer write data to buffers once enqueued to the clients RxF queue.\\
     Should the client write data to buffers already enqueued in the RxF queue, it will potentially write over incoming data. This will only
-    affect the misbehaving client application, but can also be protected against by mapping Rx buffers to clients as read only.
+    affect the misbehaving client application, but can also be protected against by mapping Rx buffers to clients as read-only.
     \item Enqueue a buffer to the RxF queue only once per use.\\
     If a client enqueues the same buffer multiple times to the RxF queue, it will potentially cause the copy component to write new incoming
     data over other used packets. This may mean the client loses Rx packets. Similarly, this will not affect any other applications.
@@ -319,7 +336,7 @@ for transmit and before the buffer returns in the free queue). Specifically, we 
     the multiplexer incorrectly sees the queue as full, it will panic. This is because the multiplexer assumes the client's 
     TxF queues are never full (as when it dequeues a new free buffer from the driver, it cannot know in advance where 
     to return the buffer). If one client misbehaves, then it may prevent the multiplexer from dequeuing more free buffers 
-    from the driver side and returning them to clients. This has the potential the corrupt the entire transmit path for all
+    from the driver side and returning them to clients. This has the potential to corrupt the entire transmit path for all
     client applications.
     \item Enqueue a buffer to the TxU queue only once per use.\\
     If a client enqueues the same buffer multiple times to the TxU queue, it will potentially cause the device to send the
@@ -343,10 +360,8 @@ of a faulty client, there will be less buffers available for other clients. To p
 shared buffers on the receive path for all RxU queues between the multiplexer and each copy component to be full at the same time.\\
 
 However, the transmit path is not protected from misbehaving client applications. While scenarios 7, 8 and 13 only impact the client
-itself, scenario 7 has the potential to compromise other devices on the network without a trusted device, and scenario 9 can block
+itself, scenario 9 has the potential to compromise other devices on the network without a trusted device, and scenario 11 can block
 all transmit traffic, including that of other clients.\\
-
-\subsection{Transmit Copy Component}
 
 To remove these vulnerabilities, we can mimic the receive path by injecting a small, trusted component in between each untrusted
 client application and the shared multiplexer as shown in \autoref{f:tx_copy}. The component can be configured as
@@ -371,6 +386,7 @@ To interface with a completely untrusted client application, this new component 
 Like the receive path copy components, should a client misbehave when interacting with the shared queues, or fail to signal as per
 the protocol, the new Tx Copy component will ignore any requests or no longer enqueue free buffers to the client, thus only disturbing
 that client and not affecting any other components in the system.\\
+Contrary to the Rx Copy component, this does not introduce a shared Tx data region. 
 This additional component would introduce some additional performance overheads. These include the cost of reading packet headers, 
 an extra system call on the transmit path, and potentially the cost of copying the entire packet. 
 We measure these overheads in \autoref{ch:evaluation}.\\

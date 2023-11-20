@@ -34,7 +34,7 @@ We alter our echo application to perform 10 additional data copies and checksum 
 We also compare some echo server configurations against a Linux system (version 6.1.1) on the same hardware. 
 We use a simple user-level application which reads and then writes all packets immediately back using the socket API. 
 In order to determine the CPU utilisation of both systems, we run an idle thread on each core
-at low priority to count the number of idle cycles of that core. 
+at low-priority to count the number of idle cycles of that core. 
 
 For all asymmetric client applications, we implement our own custom benchmarking applications to run on an Intel Xeon W-1250
 running at 3.3 Ghz, with 64GB RAM and equipped with a 10Gbps NIC. For our transmit-dominant client, our benchmarking
@@ -45,7 +45,7 @@ we count the number of successfully received packets by the client itself to det
 \section{Single Client Performance}
 
 We first establish a baseline for our system by measuring the networking performance of a single echo server application. 
-We also compare against a Linux system and can already establish that our design outperforms a typical monolithic set up 
+We also compare against a Linux system and can already establish that our design outperforms a typical monolithic setup 
 for simple echo servers. 
 
 \noindent\begin{figure}[H]
@@ -72,11 +72,16 @@ We can see that the seL4 based system's throughput scales with applied load and 
 Linux scales linearly to about 650 Mb/s and then plateaus. When comparing the CPU utilisation of both systems, we
 can see that the reason behind this plateau in throughput is because Linux uses significantly more CPU cycles 
 to handle a given load than the seL4 based system. Furthermore, the CPU utilisation of our system also scales 
-sub-linearly with increasing load which indicates efficient batching.
+sub-linearly with increasing load which indicates efficient batching. The batching is a result of the sDDF's asynchronous 
+transport layer, which enables data to be passed around in batches and thus minimises the number of system calls requried per packet.
 
 \autoref{f:perf_latencies} compares the round trip time (RTT) latency with standard deviations over applied load of both systems. The latency measured
-is the median result taken from a sample size of 200,000 packets. We can see that the sDDF demonstrates a much faster round trip time over Linux, 
-and, unlike Linux, the round trip time does not blow up as the system becomes saturated. 
+is the median result taken from a sample size of 200,000 packets. We can see that the sDDF demonstrates a much faster round trip time over Linux.\\
+
+Despite the high count of system calls required in our design, this evaluation demonstrates the minimal impact this count has on overall performance. 
+The seL4 based system requires roughly 15K cycles per packet, whereas the Linux based system requires 43K cycles per packet. An asynchronous signal on seL4
+is less than 1000 cycles \cite{seL4bench_23}, thus an additional system call per packet would only add an overhead of roughly 6\%. Compared with the cost
+of packet processing, this is insignificant, whereas a system call in a monolithic kernel can be of the order of 10s of thousands of cycles. 
 
 \section{Asymmetric Client Applications}
 
@@ -85,7 +90,7 @@ applications that could be deployed on a real system. We wish to test applicatio
 an application with higher transmit demands and minimal incoming traffic, an application with higher receive demands and minimal outgoing traffic
 and finally, an application that initiates communication before transmitting large amounts of data.
 
-\subsection{Transmit dominant application}\label{s:transmit_dom}
+\subsection{Transmit-dominant application}\label{s:transmit_dom}
 We implement a simple client application that transmits 10,000 UDP packets, of 1472 bytes each, for every UDP packet received.
 Ethernet maximum transmission unit is 1518 bytes, which leaves a maximum of 1472 bytes in payload once you account for 14 bytes
 in Ethernet headers and 32 bytes for UDP/IP headers. 
@@ -98,7 +103,7 @@ waits for more transmit buffers as outlined above. Thus, when transmit buffers b
 transmit buffers are available. The benefit of temporarily pausing creating transmit requests is that it also ensures the application
 is available to process any incoming traffic in the interim. 
 
-\subsection{Receive dominant application}
+\subsection{Receive-dominant application}
 We also implement a simple receive dominant client application that for every 10,000 UDP packets received, it transmits a single one.
 This application is much simpler to implement as all memory management is already dealt with so we just adapt the echo server to 
 only echo every 10,000th packet.\\
@@ -127,17 +132,18 @@ throughput of the echo server.
 \autoref{f:asym} shows the measured throughput as well as the CPU utilisation of each test application. 
 Compared with our echo benchmarks, our asymmetric applications both utilise 50\% less CPU for 80+\% of the
 throughput. While we would be able to achieve higher throughput in these examples by receiving/sending
-more than 10,000 packets for every packet in the other direction, this would defeat the purpose of these examples
+more than 10,000 packets for every packet in the other direction, thus skewing the ratio of send/receive in favour of throughput,
+this would defeat the purpose of these examples
 as we are only wanting to test asymmetric traffic as opposed to uni-directional.
 From both of these results, we can conclude our system is able to cope well with asymmetric UDP traffic. 
-In our client initiated benchmark, we are able to achieve near wire speed with less than 40\% CPU. This is inline
+In our client-initiated benchmark, we are able to achieve near wire speed with less than 40\% CPU. This is inline
 with our expectations compared to our echo benchmarks, given this system has half the workload with no incoming
 packets. Although these tests are fairly simple, they provide a good sanity check to confirm our system can 
 keep up with different workloads and present a good starting point for developing more complex workloads in the future.
 
-\section{Single Core, Multi-client systems}
+\section{Single-core, Multi-client systems}
 
-Our design has a large number of different parameters to experiment with, including multiplexer
+Our design has a large number of different parameters to experiment with, including multiplexerƒ
 policies, queue sizes and the scheduling parameters of client applications running on the system. 
 We select a small variety of example systems to evaluate our different policy designs. We evaluate
 these systems with two separate ipbench instances running on different clusters sending UDP packets
@@ -145,18 +151,18 @@ at the same time to their respective clients. The order in which they arrive at 
 depends on the order in which packets arrive at the network switch connecting our system to the clusters
 running ipbench. 
 
-We start first with evaluating single core configurations running two echo server applications. 
+We start first with evaluating single-core configurations running two echo server applications. 
 Each system comprises of an Ethernet driver, Rx Mux, Tx Mux, 2 copy components (1 for client A, 1 for client B) 
-and two simple echo servers; client A and client B. As these systems run on single core, a round robin or priority-based
+and two simple echo servers; client A and client B. As these systems run on single-core, a round-robin or priority-based
 policy in the Tx Mux would not make sense as the multiplexer runs at higher priority than both the clients and thus
 will be invoked as soon as it is signalled by either client. We instead first evaluate a simple Tx Mux that only 
 responds to the client that signalled it, and enforce policy through our system design. We also evaluate our
-bandwidth limited multiplexer on its ability to efficiently enforce different bandwidth limits for different clients.
+bandwidth-limited multiplexer on its ability to efficiently enforce different bandwidth limits for different clients.
 
 \subsection{Enforcing Policy through System Design}
 We first evaluate a system where both clients run at equal priority, with their respective copy components at 
 equal, higher priority than their client, and both clients have a queue size of 512 for all interfacing queues.
-We rely on the kernel scheduler to ensure fairness and that clients are scheduled in round robin order.
+We rely on the kernel scheduler to ensure fairness and that clients are scheduled in round-robin order.
 
 \noindent\begin{figure}[H]
     \centering
@@ -237,8 +243,8 @@ for each client. Client A achieves lower latencies than client B as it is runnin
 at higher priority and thus is scheduled to run first.
 
 If there was more contention for the CPU, then we would expect the priority assignment of each client to have an effect
-on their achieved throughput. We now add unnecessary overhead to each packet's round trip to simulate an environment where
-this is the case. We have each client copy each packet and calculate a checksum 10 times as per \autoref{s:compute_heavy}. 
+on their achieved throughput. We now add extra overhead to each packet's round trip to simulate an environment where
+this is the case. We have each client copy each packet and calculate a checksum 10 times. 
 
 \noindent\begin{figure}[H]
     \centering
@@ -262,7 +268,7 @@ this is the case. We have each client copy each packet and calculate a checksum 
 
 \autoref{f:AgtB_overload} shows the achieved throughput for both clients. Neither client achieves its requested load, with client A,
 the higher priority client, maxing out at 400Mbps and client B seeing a performance collapse to 300Mbps. By the total achieved throughput
-and CPU load, it is clear the system is overloaded at this point. However, it is clear that client B as the low priority client is 
+and CPU load, it is clear the system is overloaded at this point. However, it is clear that client B as the low-priority client is 
 starving client A by monopolising shared Rx buffers, as client A is not able to achieve its requested load. We now limit client B's RxU queue
 to 32 to prevent this and ensure there are adequate Rx buffers available to higher priority clients as per \autoref{s:rx_policy}. 
 \autoref{f:AgtB_RxU32_overload} shows the resulting performance. The total throughput achieved is not affected by this change, and the
@@ -296,13 +302,13 @@ echo client for maximum throughput, and vary the size of both the clients TxU an
 \end{figure}
 
 \autoref{f:queue_sizes} shows the throughput achieved and CPU utilisation against the increasing queue sizes. Both 
-measurements increase dramatically before plateauing. Notably, there is a slight performance collapse in CPU utilisation 
-while throughput increases as the queue size doubles from 64 to 128. This is because a limited transmit queue
+measurements increase dramatically before plateauing. Notably, there is an efficiency improvement shown in the CPU utilisation
+as throughput increases and the queue size doubles from 64 to 128. This is because a limited transmit queue
 for an echo application causes incoming packets to be potentially processed by the driver and multiplexer before 
 being discarded as the client's RxU queue is full.
-This occurs in echo applications due to a shortage of transmit buffers stalling a clients ability to process packets. The
+This occurs in echo applications due to a shortage of transmit buffers stalling a client's ability to process packets. The
 result is that some excess work is done on packets that get discarded, leading to a higher average cycle cost per packet. 
-Ultimately, despite this overhead, we see that limiting a clients transmit queues can effectively limit the available transmit
+Ultimately, despite this overhead, we see that limiting a client's transmit queues can effectively limit the available transmit
 throughput to that client, and with a queue size of 128, a client is able to achieve wire speed.\\
 
 \subsection{Bandwidth-limited Tx Multiplexer}
@@ -325,7 +331,7 @@ expect there to be some overhead as the multiplexer must communicate regularly w
 context switches, some of this overhead can be reduced with an optimised implementation 
 as outlined in \autoref{s:bandwidth}. This is left for future work.
 
-In order to properly evaluate our round robin and priority-based multiplexer designs, we must first evaluate how our
+In order to properly evaluate our round-robin and priority-based multiplexer designs, we must first evaluate how our
 design scales to multi-core. From there, we can design systems where the clients run on separate cores and will be scheduled irrespective
 of one another, thus requiring further policy in the multiplexer.
 
@@ -337,7 +343,7 @@ less optimised and some fast paths do not apply. Secondly, inter-core communicat
 inter-processor interrupts (IPI) for inter-core signalling and cache-line bouncing from any shared data. While detailed analysis of
 these overheads is left for future work, in order to properly
 analyse how our system performs on multi-core configurations, we first establish a baseline of these costs. We first evaluate two separate configurations
-using the SMP kernel: pinning every component to a single core and splitting the load across two cores (out of an available 4). 
+using the SMP kernel: pinning every component to a single-core and splitting the load across two cores (out of an available 4). 
 We compare these to our baseline without the SMP kernel. Each system is comprised of 5 PDs: an Ethernet driver, RX Mux, 
 TX Mux, Copy Component, Client running a simple echo server. Our two core system pins the driver and Tx Mux to one core, and 
 the Rx Mux, Copier and Client pinned to the other. We also compare these systems against a typical Linux set up, whereby
@@ -357,12 +363,12 @@ whereas the Linux system maxes out at just 800Mbps. All seL4 systems also outper
 this point, and hence why the system can't achieve higher throughput. \\
 
 However, the total CPU utilisation of each of our seL4 systems differs substantially. 
-The difference between the single core CPU load (dotted green line) and the single core SMP CPU load (dotted red line) 
+The difference between the single-core CPU load (dotted green line) and the single-core SMP CPU load (dotted red line) 
 outlines the overhead of using the SMP kernel. To achieve 100Mbps, the normal kernel configuration utilises 13.5\% of the CPU, whereas
 the SMP kernel configuration utilises 29.9\% of the CPU; about 121\% overhead. While this is substantially higher than expected given
 there is no inter-core communication for either of these configurations, detailed
 exploration of these overheads is left for future work. 
-Comparing the single core SMP CPU load against the two core SMP CPU load (dotted blue line) outlines the overheads introduced by
+Comparing the single-core SMP CPU load against the two core SMP CPU load (dotted blue line) outlines the overheads introduced by
 inter-core communication between our 5 PDs; just over 20\% at 100Mbps. Note that not all system calls will introduce IPIs in
 this configuration, as, for example, the Copy component only communicates intra-core with the Rx Mux and Client. \\
 
@@ -389,11 +395,11 @@ components can be arbitrarily distributed across cores. Ultimately, the optimal 
 Now we have a baseline evaluation for multi-core systems, we can design simple systems with which to evaluate our other transmit multiplexer
 designs. 
 
-\subsection{Round Robin Tx Multiplexer}
+\subsection{Round-robin Tx Multiplexer}
 
-A round robin policy in our Tx Multiplexer only makes sense when clients are running on separate cores. This is because the Tx Mux runs at higher
+A round-robin policy in our Tx Multiplexer only makes sense when clients are running on separate cores. This is because the Tx Mux runs at higher
 priority than the clients, and will be invoked as soon as a client has signalled it. If both clients are on the same core, then the Tx Mux will
-be invoked after one client has finished enqueuing packets for transmit, but before the other client has been scheduled. We evaluate our round robin
+be invoked after one client has finished enqueuing packets for transmit, but before the other client has been scheduled. We evaluate our round-robin
 Tx Mux on a 2 client multi-core configuration, where each client is pinned to a separate core shared with its respective copy component, and another
 core hosts the Driver, Rx Mux, ARP Component and Tx Mux. 
 
@@ -415,22 +421,22 @@ core hosts the Driver, Rx Mux, ARP Component and Tx Mux.
         \label{f:round_robin_mux_latency}
     \end{subfigure}
 \end{multicols}
-\caption{Networking performance of two echo servers with a round robin multiplexer}
+\caption{Networking performance of two echo servers with a round-robin multiplexer}
 \end{figure}
 
 The total achieved throughput as well as that of each client is shown in \autoref{f:round_robin_mux}. As expected, both clients achieve their 
 requested throughput, with their sum equalling wire speed. Importantly, both clients experience the same networking latencies as shown
-in \autoref{f:round_robin_mux_latency} by their respective median round trip times. This demonstrates our round robin Tx Mux enforces
+in \autoref{f:round_robin_mux_latency} by their respective median round trip times. This demonstrates our round-robin Tx Mux enforces
 fairness between two clients effectively.\\
 
-The system incurs significant overhead than when compared to our equal priority, single core example in \autoref{f:AB}. To
+The system incurs significant overhead when compared to our equal priority, single-core example in \autoref{f:AB}. To
 achieve a total of 200Mbps (100Mbps per client), our multi-core system utilises 63\% of the CPU (split across 3 cores) compared with 
-only 23.5\% CPU utilisation of our single core example. To better understand these overheads, we run our equal priority, 
-single core example again (see \autoref{f:AB}) but with the SMP kernel instead. We find that to achieve
+only 23.5\% CPU utilisation of our single-core example. To better understand these overheads, we run our equal priority, 
+single-core example again (see \autoref{f:AB}) but with the SMP kernel instead. We find that to achieve
 a total throughput of 200Mbps, the system utilises 51\% of the CPU, and the system maxes out at just over 700Mbps. 
 From this we can conclude that most of the overheads in these systems stem 
 from just using the SMP kernel, and an additional 22\% accounts for the costly intra-core communication across 3 cores as 
-well as any overheads of the multiplexer itself.
+well as any overheads of the multiplexer itself. 
 
 \subsection{Priority-based Tx Multiplexer}
 
@@ -462,20 +468,22 @@ scheduling priority as one another. Likewise with their copy components, which a
 
 Both clients achieve their requested throughput as shown in \autoref{f:priority_mux} and as expected, \autoref{f:priority_latency} shows
 that client A has lower latencies over client B. Notably, client A's latencies are also lower on this system, with a median RTT
-of 1480us at wire speed, when compared to our system with a round robin policy, where client A has a median RTT of 1524us at the same
+of 1480us at wire speed, when compared to our system with a round-robin policy, where client A has a median RTT of 1524us at the same
 throughput. This demonstrates our policy implemented in the Tx Mux works effectively to prioritise
 client A over client B.\\
-Furthermore, both our round robin multiplexer and our priority-based multiplexer introduce similar overheads as indicated by their 
-respective CPU utilisation measurements. \\
+Furthermore, both our round-robin multiplexer and our priority-based multiplexer introduce similar overheads as indicated by their 
+respective CPU utilisation measurements. We conclude from these experiments that our round-robin and priority-based multiplexers work
+effectively, with each experiment displaying expected consequences of the policy enforced by the multiplexer, but more work is needed in
+investigating the SMP kernel to develop more efficient multi-core systems.\\
 
 \subsection{Two-threaded Driver}
 For some multi-core systems, the driver could be a performance bottleneck if the core it is running on is saturated. We can offload
 some of the driver's work to another core with our two-threaded driver design. In doing so, we will introduce additional overheads
 stemming from an additional context switch per packet, as well as communication between the two driver components required at
-high loads. We first measure these overheads by comparing our single core system with a simple echo server client against the 
+high loads. We first measure these overheads by comparing our single-core system with a simple echo server client against the 
 same system with our two threaded driver design. We compare the overall throughput and CPU utilisation of both systems. As 
 our two-threaded driver design only makes sense in multi-core systems, we configure both systems with SMP enabled but 
-initially confine them to a single core.
+initially confine them to a single-core.
 
 \begin{figure}[h]
     \centering
@@ -493,7 +501,7 @@ We now design a system where the two-threaded driver design may be applicable. T
 multi-core system when the core it is running on is saturated, and there are no other available cores with sufficient bandwidth
 to run the driver on. To replicate such a scenario, we configure our system with 4 compute-heavy client applications. We set up
 4 echo servers to copy each packet 100 times and calculate a checksum 100 times. We configure each client to run on its own
-core, along with its copy component, and use our round robin transmit multiplexer to ensure fairness across the clients. 
+core, along with its copy component, and use our round-robin transmit multiplexer to ensure fairness across the clients. 
 As our hardware platform only has 4 cores, the driver must share a core with at least one client and 
 its copy component. The core assignment is as follows:
 \begin{itemize}
@@ -584,7 +592,7 @@ added if the component is responsible for all possible tasks listed. These are:
 
 We measure these overheads on a simple echo server system. We run this new component at higher priority than the client
 and the Rx Copy component to ensure invocation as soon as packets are ready to be transmitted and thus keep
-latencies low. We use a simple Tx Mux with no explicit policy and the priority assignment of the system is as follows:\\
+latencies low. We use a simple Tx Mux configured for a single client and the priority assignment of the system is as follows:\\
 \centerline{Driver \(>\) Tx Mux  \(>\) Tx Copy \(>\) Rx Mux \(>\) Rx Copy \(>\) Client}
 
 We compare the achieved throughput and CPU utilisation of this system to the same system without this additional component. 
@@ -615,13 +623,14 @@ designs can flexibly implement a variety of different policies that may be requi
 However, not all combinations make sense and system design heavily influences inner policies. 
 For example, \autoref{f:AgtB_overload} demonstrated
 that a higher priority client could be starved by a lower priority client without appropriate choice
-of queue size, and simply limiting a clients queue sizes can reduce a clients available throughput.\\
+of queue size, and simply limiting a clients queue sizes can reduce a clients available throughput. System designers
+can use these properties to implement a use-case specific policy \\
 
 Although our design scales well to multiple clients, our investigation into multi-core systems has 
 unveiled significant overheads from just enabling the SMP configuration in seL4.
 Thorough investigation of these overheads is left for future work. In spite of such overheads, our design can
 be arbitrarily distributed across cores and effectively enables high-throughput networking for compute-heavy clients when a 
-single CPU is insufficient. From our analysis, we conclude our two-threaded driver design is not practical
+single CPU is insufficient. From our analysis, we conclude our two-threaded driver design is not beneficial
 due to the overheads outweighing any possible benefit in systems where the driver is a bottleneck in throughput.\\
 
 Finally, although a security analysis of our framework reveals a misbehaving client does have the ability to compromise

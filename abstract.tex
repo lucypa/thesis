@@ -1,5 +1,13 @@
 \chapter{Abstract}\label{ch:abstract}
 
-This thesis evaluates the seL4 Device Driver Framework for secure, high-performance networking-based
-systems. It extends the framework to flexibly and securely support multiple client applications, and explores 
-how system designers can enforce different policies as required for a given system's use-case. 
+Modern operating systems undergo rapid development on an extensive code base. 
+This growth has steadily introduced bugs and security vulnerabilities into the trusted computing base,
+and the growing array of security patches and new features has led to a decline in system call performance.
+Unfortunately, monolithic kernel design means a single exploitable vulnerability can compromise the entire kernel.
+The alternative in microkernel-based design has historically been unpopular due to its impact on performance
+as it requires significantly more context switches than its monolithic counterpart. This thesis evaluates the
+seL4 Device Driver Framework which rectifies this concern, showcasing superior networking performance
+compared to a standard Linux system, while leveraging the security guarantees
+of the seL4 microkernel to provide a secure and performant networking subsystem. We extend the framework
+to flexibly and securely support multiple client applications and scale to multi-core systems, 
+highlighting a number of ways in which system designers can enforce use-case specific policies. 

@@ -7,94 +7,21 @@ set y2range [0:170]
 set xrange [0:1000]
 set xtics nomirror rotate
 set ytics nomirror
-set bmargin 14
+set bmargin 7.5
 set key outside below 
-set size 1,1.5
 set style line 1 lw 6 lt 1
-set style line 1 lw 6 lt 7 dt 1 lc rgb 0xfccf03
-set style line 2 lw 5 lt 7 ps .5 dt 1 lc rgb 0xa5d162
-set style line 3 lw 5 lt 4 ps .3 dt 3 lc rgb 0xa5d162
-set style line 4 lw 4 lt 7 ps .5 dt 1 lc rgb 0xfb053e
-set style line 5 lw 4 lt 4 ps .3 dt 3 lc rgb 0xfb053e
-set style line 6 lw 2 lt 7 ps .5 dt 1 lc rgb 0x0563fb
-set style line 7 lw 2 lt 4 ps .3 dt 3 lc rgb 0x0563fb
-set style line 8 lw 2 lt 7 ps .5 dt 1 lc rgb 0xfbbd05
-set style line 9 lw 2 lt 4 ps .3 dt 3 lc rgb 0xfbbd05
-set style line 13 lw 2 lt 6
-set style line 14 lw 2 lt 8
-set term postscript eps enhanced color size 2.5,2
-set output "multicore.eps"
-plot  "-" using 1:2:3 axes x1y1 title "Single Core XPUT"  with xerrorlines ls 2, "-" using 1:4:5 axes x1y2 title "CPU" with xerrorlines ls 3,  "-" using 1:2:3 axes x1y1 title "SMP XPUT"  with xerrorlines ls 4, "-" using 1:4:5 axes x1y2 title "CPU" with xerrorlines ls 5,  "-" using 1:2:3 axes x1y1 title "SMP Two Cores XPUT"  with xerrorlines ls 6, "-" using 1:4:5 axes x1y2 title "CPU" with xerrorlines ls 7,  "-" using 1:2:3 axes x1y1 title "Linux XPUT"  with xerrorlines ls 8, "-" using 1:4:5 axes x1y2 title "CPU" with xerrorlines ls 9
+set style line 1 lw 6 lt 7 dt 1 lc rgb 0xfbbd05
+set style line 2 lw 4 lt 7 ps .5 dt 1 lc rgb 0xfbbd05
+set style line 3 lw 4 lt 4 ps .3 dt 3 lc rgb 0xfbbd05
+set style line 4 lw 4 lt 7 ps .5 dt 1 lc rgb 0xa5d162
+set style line 5 lw 4 lt 4 ps .3 dt 3 lc rgb 0xa5d162
+set style line 6 lw 4 lt 7 dt 3 lc rgb 0xa5d162
+set style line 7 lw 4 lt 6
+set style line 8 lw 4 lt 8
+set term svg font ",18"
+set output "multicore.svg"
+plot  "-" using 1:2:3 axes x1y1 title "Linux Xput"  with xerrorlines ls 2, "-" using 1:4:5 axes x1y2 title "CPU" with xerrorlines ls 3,  "-" using 1:2:3 axes x1y1 title "seL4 Xput"  with xerrorlines ls 4, "-" using 1:4:5 axes x1y2 title "CPU" with xerrorlines ls 5
 
-000100 100.002 0 13.5215 0
-000199 199.999 0 24.3506 0
-000300 300.001 0 32.796 0
-000400 400 0 41.0412 0
-000499 500.009 0 48.4719 0
-000600 599.992 0 55.9796 0
-000699 700.015 0 63.2748 0
-000800 800.008 0 70.7905 0
-000899 900.037 0 78.1025 0
-000999 957.056 0 82.6423 0
-e
-
-000100 100.002 0 13.5215 0
-000199 199.999 0 24.3506 0
-000300 300.001 0 32.796 0
-000400 400 0 41.0412 0
-000499 500.009 0 48.4719 0
-000600 599.992 0 55.9796 0
-000699 700.015 0 63.2748 0
-000800 800.008 0 70.7905 0
-000899 900.037 0 78.1025 0
-000999 957.056 0 82.6423 0
-e
-000100 100.016 0 29.992 0
-000200 200.055 0 38.9069 0
-000300 300.078 0 49.9937 0
-000399 400.433 0 53.9255 0
-000499 500.447 0 61.3459 0
-000600 599.996 0 68.7896 0
-000700 699.718 0 75.2305 0
-000799 799.56 0 81.1822 0
-000899 900.583 0 88.0106 0
-000999 957.701 0 92.2288 0
-e
-
-000100 100.016 0 29.992 0
-000200 200.055 0 38.9069 0
-000300 300.078 0 49.9937 0
-000399 400.433 0 53.9255 0
-000499 500.447 0 61.3459 0
-000600 599.996 0 68.7896 0
-000700 699.718 0 75.2305 0
-000799 799.56 0 81.1822 0
-000899 900.583 0 88.0106 0
-000999 957.701 0 92.2288 0
-e
-000100 100.005 0 34 0
-000199 199.97 0 50 0
-000300 300.173 0 63 0
-000399 400.043 0 66 0
-000499 500.781 0 73 0
-000600 600.482 0 79 0
-000699 700.792 0 85 0
-000800 800.105 0 90 0
-000899 900.053 0 97 0
-000999 957.509 0 99.9 0
-e
-
-000100 100.005 0 34 0
-000199 199.97 0 50 0
-000300 300.173 0 63 0
-000399 400.043 0 66 0
-000499 500.781 0 73 0
-000600 600.482 0 79 0
-000699 700.792 0 85 0
-000800 800.105 0 90 0
-000899 900.053 0 97 0
-000999 957.509 0 99.9 0
-e
 000100 100 0 40 0
 000200 200 0 56 0
 000300 300.006 0 76 0
@@ -117,4 +44,28 @@ e
 000799 792.239 0 152 0
 000899 806.517 0 164 0
 000999 809.902 0 164 0
+e
+
+000100 100.005 0 34 0
+000199 199.97 0 50 0
+000300 300.173 0 63 0
+000399 400.043 0 66 0
+000499 500.781 0 73 0
+000600 600.482 0 79 0
+000699 700.792 0 85 0
+000800 800.105 0 90 0
+000899 900.053 0 97 0
+000999 957.509 0 99.9 0
+e
+
+000100 100.005 0 34 0
+000199 199.97 0 50 0
+000300 300.173 0 63 0
+000399 400.043 0 66 0
+000499 500.781 0 73 0
+000600 600.482 0 79 0
+000699 700.792 0 85 0
+000800 800.105 0 90 0
+000899 900.053 0 97 0
+000999 957.509 0 99.9 0
 e

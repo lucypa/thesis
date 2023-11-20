@@ -8,7 +8,7 @@ unset key
 reset
 dx=5.
 n=2
-total_box_width_relative=0.75
+total_box_width_relative=0.65
 gap_width_relative=0
 d_width=(gap_width_relative+total_box_width_relative)*dx/8.
 reset

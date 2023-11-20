@@ -1,23 +1,40 @@
 \chapter{Conclusion}\label{ch:conclusion}
 
-Typical networking based systems face major problems with either security, performance or both. 
-This thesis evaluated a novel framework in the seL4 Device Driver Framework, and expanded it's 
-functionality to flexibly support multiple client applications on multi-core systems. We explored
-and evaluated how system designers can reinforce different policies using different multiplexer implementations,
-adjusting client facing queues, configuring client scheduling parameters, and pinning components across cores.
-These parameters can be easily configured for a system's particular use-case, where analysis is required
-on that use-case to properly determine the optimal configuration.
-We also evaluated our system against an untrusted client application, and 
-presented an additional component that protects the rest of the framework from being compromised. 
-This new component introduces acceptable overheads, and can be easily configured for a systems threat scenario. 
-We conclude that our componentised, microkernel-based framework not only outperforms a typical monolithic
-set up in Linux but also provides stronger security guarantees to historically bug prone code. Our static architecture
-scales efficiently and flexibly supports multi-client systems. \\
+Traditional networking systems often grapple with significant challenges related to security, performance, or a 
+combination of both. This thesis conducted an evaluation of the seL4 Device Driver Framework for networking systems,
+expanding its functionality to flexibly support multiple client applications on multi-core systems. The highly
+modularized design of the sDDF not only surpasses the performance of traditional monolithic setups in Linux,
+despite the number of context switches required, but also provides strong fault containment for historically
+bug-prone code. This is furthered by the intentional simplicity of each component, minimizing the debugging effort
+required by developers and opening the potential for formal verification. \\
+
+This thesis delved into the ways in
+which system designers can impose diverse policies through varied, plug-compatible multiplexer implementations,
+configuration of client-facing queues, adjustment of client scheduling parameters, and strategic pinning of
+components across cores. The example systems we evaluated provide a strong starting point when tailoring these
+parameters to configure a system optimally for its particular use case. \\
+
+System designers should also consider the
+performance trade-offs when contemplating a single or multi-core system. Our evaluation unveiled substantial
+overheads associated with the SMP configuration of seL4, a factor that may be acceptable for compute-intensive
+applications. Despite this, we demonstrated that the design can be arbitrarily distributed across cores to cater
+to systems when a single CPU is insufficient. \\
+
+Furthermore, we conducted a security analysis to assess potential
+vulnerabilities in our design when faced with an untrusted client application. In response, we introduced an
+additional component to safeguard the subsystem from potential compromise. Despite the introduced overheads,
+this component can be easily configured to suit a particular system's threat scenario and performance
+requirements. \\
+
+In conclusion, our evaluation and extension of the seL4 Device Driver Framework debunks
+the performance myths surrounding microkernel-based designs, demonstrating performance surpassing traditional
+monolithic setups. Significantly, such a design also provides stronger security guarrantees while proving itself 
+adaptable for varying use cases.
 
 \section{Future Work}
 
 The seL4 Device Driver Framework is not yet a fully functional networking framework as there are a number of features
-not yet supported. 
+not yet supported.
 Firstly, our evaluation was confined to UDP only. TCP is a more complex protocol, requiring outgoing packets to be acknowledged 
 by the receiver. This means the IP stack must temporarily store buffers until an acknowledgement message is received to enable missed packets 
 to be resent. As such, lwIP does not flexibly support zero-copy TCP and changes to the IP stack would be required to properly
@@ -27,13 +44,20 @@ This thesis has omitted a deeper evaluation of TCP and left it for future work. 
 
 Our performance comparisons against Linux systems were limited to the synchronous socket API. Linux also supports a number
 of asynchronous designs, as discussed in \autoref{ch:related_work}, which would provide an interesting comparison against 
-our work. Obtaining these would require porting the framework to an x86 architecture with a 1Gbps NIC. \\
+our work. Obtaining these would require porting the framework to an x86 architecture with a 10Gbps NIC. \\
 
 This thesis was confined to static architectures. The sDDF aims to support minimal dynamicism by enabling the stopping and restarting
 of components as well dynamically changing policies. For example, this thesis could be extended to permit a trusted component
 to detect a misbehaving client and restart the client application. Multiplexer components could be swapped out at run time to enable
 swappable policy enforcement, however the framework as it stands does not support this and further work is required in measuring 
 the performance cost of such a feature. \\
+
+Additionally, our multiplexers were implemented at layer one, though multiplexing at layer two or three may be more practical for some
+systems as it would remove the onus on the system designer to set up hardware and protocol addresses for all clients, as well as the 
+need for the ARP component. A layer two implementation would require a separate, trusted DHCP client that can resolve DHCP for all
+client applications and thus ensure no address collision on the network. A layer three implementation would mean each client uses the 
+same protocol and shares an IP address, but is confined to a set of ports. A separate DHCP client would still be required to assign
+and manage the shared IP address. \\
 
 Our evaluation of multi-core systems revealed significant overhead in the SMP configuration of seL4. This warrants a thorough investigation
 to properly understand and optimise these overheads. \\

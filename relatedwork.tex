@@ -61,7 +61,7 @@ The result is that a process has access to data belonging to other processes. Al
 power usage of the system and it is unclear what policy is applied to this mode when there are multiple client
 applications using it, or if there is other work to be done by the kernel.
 
-\section{User space device drivers}\label{s:userspace_dd}
+\section{User-space device drivers}\label{s:userspace_dd}
 Running device drivers as user level programs is the simplest way to deprivilege the software and provide
 strong fault isolation. However, this can lead to a significant increase in the number of system calls
 required and this cost can degrade performance significantly. In order to overcome this, kernel bypass
@@ -111,20 +111,22 @@ likewise for consumers). Pseudo code for interacting with MPMC queues is shown \
 		\begin{minted}[fontsize={\fontsize{8.5}{9.5}\selectfont}]{c}
 enqueue(data) {
 again:
-    ph = load(prod.head)
-    pn = ph + 1
-    if (pn > load(cons.tail) + SIZE)
-	    return FULL
-    if (!cas(prod.head, ph, pn))
-        /* Another producer is 
-        using this slot */
-        goto again
-    entry[pn] = data
-    /* Wait until earlier slots have
-    successfully committed */
-    while(load(prod.tail) != ph)
-    store(prod.tail, pn)
-    return OK
+  ph = load(prod.head)
+  pn = ph + 1
+  if (pn > load(cons.tail)+ SIZE)
+    return FULL
+  if (!cas(prod.head, ph, pn))
+    /* Another producer is 
+      using this slot */
+    goto again
+  entry[pn] = data
+  /* Wait until earlier slots 
+    have successfully
+    committed */
+  while(load(prod.tail) != ph)
+  store(prod.tail, pn)
+
+  return OK
 }
     \end{minted}
     \caption{Producer pseudo code}
@@ -135,20 +137,22 @@ again:
     \begin{minted}[fontsize={\fontsize{8.5}{9.5}\selectfont}]{c}
 dequeue() {
 again:
-    ch = load(cons.head)
-    cn = ch + 1
-    if (cn > load(prod.tail))
-        return EMPTY
-    if (!cas(cons.head, ch, cn))
-        /* Another consumer is 
-          consuming this slot */
-    goto again
-    data = entry[cn]
-    /* Wait until earlier slots have 
-       successfully committed */
-    while(load(cons.tail) != ch)
-    store(cons.tail, cn)
-    return data
+  ch = load(cons.head)
+  cn = ch + 1
+  if (cn > load(prod.tail))
+    return EMPTY
+  if (!cas(cons.head, ch, cn))
+    /* Another consumer is 
+      consuming this slot */
+  goto again
+  data = entry[cn]
+  /* Wait until earlier slots 
+    have successfully 
+    committed */
+  while(load(cons.tail) != ch)
+  store(cons.tail, cn)
+
+  return data
 }
     \end{minted}
     \caption{Consumer pseudo code}
@@ -159,51 +163,6 @@ again:
 \label{l:mpmc}
 \end{figure}
 
-% \newpage
-% \noindent\begin{minipage}{.45\textwidth}
-% \fontsmall
-% \begin{lstlisting}[numbers=left, tabsize=2, language=C, caption={Producer pseudo code},frame=tb, label={l:prod}, captionpos=b]
-%   enqueue(data) {
-%   again:
-%   	ph = load(prod.head)
-%   	pn = ph + 1
-%   	if (pn > load(cons.tail) + SIZE)
-%   		return FULL
-%   	if (!cas(prod.head, ph, pn))
-%   		/* Another producer is 
-%   		   using this slot */
-%   		goto again
-%   	entry[pn] = data
-%   	/* Wait until earlier slots have
-%   	   successfully committed */
-%   	while(load(prod.tail) != ph)
-%   	store(prod.tail, pn)
-%   	return OK
-%   }
-% \end{lstlisting} 
-% \end{minipage}\hfill
-% \begin{minipage}{.45\textwidth}
-% \fontsmall
-% \begin{lstlisting}[numbers=left, tabsize=2, language=C, caption={Consumer pseudo code},frame=tb, label={l:cons}, captionpos=b]
-%   dequeue() {
-%   again:
-%   	ch = load(cons.head)
-%   	cn = ch + 1
-%   	if (cn > load(prod.tail))
-%   		return EMPTY
-%   	if (!cas(cons.head, ch, cn))
-%   		/* Another consumer is 
-%   		   consuming this slot */
-%   		goto again
-%   	data = entry[cn]
-%   	/* Wait until earlier slots have 
-%        successfully committed */
-%   	while(load(cons.tail) != ch)
-%   	store(cons.tail, cn)
-%   	return data
-%   }
-% \end{lstlisting}
-% \end{minipage}
 
 The performance degradation comes from two possible places:
 \begin{enumerate}
@@ -296,8 +255,30 @@ large and complex device driver to a much smaller driver without significant per
 performance of ixy when compared to DPDK can in part be attributed to DPDK's use of SIMD instructions to handle
 batches of packets at a time \cite{Emmerich_PBHZC_19}. SIMD units are hardware components that perform the same
 operation on multiple data operands concurrently. In packet processing, this parallelism can boost performance
-on checksum calculations. However, much like DPDK, ixy is reliant on cache coherent architectures and also does
+on checksum calculations. However, much like DPDK, ixy is reliant on cache-coherent architectures and also does
 not support device sharing.
+
+\subsection{Linux User-level Device Drivers}\label{user_level_dd}
+Leslie et al. (2005) developed an asynchronous framework for user-level device drivers on Linux \cite{Leslie_CFGGMPSEH_05}. 
+Device registers are mapped into user-level drivers by calling \emph{mmap()} with the approparite section of \emph{$\backslash$dev$\backslash$mem}. 
+When processing an interrupt, the kernel increments a semaphore, also mapped into a special file. Much akin to \emph{uio} 
+(though published prior to the release of \emph{uio}),the user process can read this special file to obtain the value of the semaphore. 
+The driver and kernel communicate
+asynchronously via lock-free, ring buffer queues in shared memory, and share DMA I/O buffers as already provided by Linux. 
+For example, when an ethernet device receives a packet 
+and triggers an IRQ, the kernel will increment the relevant semaphore to deliver this interrupt to the user-level driver. 
+The driver will process this and enqueue the packet to the kernels network stack via these shared queues. The kernel will
+check for such a packet every time the driver returns from the interrupt handler. This way, a client application
+can use the driver via the socket API. Leslie et al. (2005) implemented an IDE block device driver and an Ethernet device driver
+on Linux 2.6.6. The user-level disk driver achieved identical performance compared with a typical in-kernel driver, and the 
+network driver achieved 93\% of the throughput for only 7\% increase in CPU utilisation. 
+
+\subsubsection{Takeaways}
+The User-level Device Drivers demonstrate that deprivileging a driver does not significantly degrade performance, despite the extra
+number of context switches required for high-performance I/O. Unlike DPDK, this design does not impose any restrictions on device sharing,
+however, still uses the kernel IP stack and file systems. These subsystems comprise of large, bug-prone code bases running in the trusted computing base.
+Furthermore, the design relies on kernel provided I/O buffers on cache-coherent architectures, and introduces costly system calls without such
+architectures.
 
 \subsection{Snap}\label{snap}
 Snap proposes a modular architecture, comparable to a microkernel design, by utilising asynchronous communication
@@ -467,7 +448,7 @@ Typical network packet processing is both insecure and non-performant. This is b
 run in the trusted computing base, and the complexity of such systems has led to reduced performance. The solutions outlined above
 aim to rectify this, but are largely limited by the monolithic kernel design itself. 
 Asynchronous IO frameworks improve performance without addressing the security vulnerabilities. User level drivers
-achieve high throughput at the cost of high utilisation and are limited to single client applications. Although techniques to
+achieve high throughput at the cost of high utilisation and are limited to single client applications (with the exception of \autoref{user_level_dd}). Although techniques to
 isolate drivers inside the OS promote device sharing, these techniques are not extensible to other kernel subsystems, they
 do not completely protect the OS and can also degrade performance. However, there are still some significant
 learnings we can take away from the above work. Firstly, Rizzo (2012), Axboe (2019), Linux Foundation (2020) and Marty et al. (2019)
