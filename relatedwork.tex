@@ -262,7 +262,7 @@ not support device sharing.
 Leslie et al. (2005) developed an asynchronous framework for user-level device drivers on Linux \cite{Leslie_CFGGMPSEH_05}. 
 Device registers are mapped into user-level drivers by calling \emph{mmap()} with the approparite section of \emph{$\backslash$dev$\backslash$mem}. 
 When processing an interrupt, the kernel increments a semaphore, also mapped into a special file. Much akin to \emph{uio} 
-(though published prior to the release of \emph{uio}),the user process can read this special file to obtain the value of the semaphore. 
+(though published prior to the release of \emph{uio}), the user process can read this special file to obtain the value of the semaphore. 
 The driver and kernel communicate
 asynchronously via lock-free, ring buffer queues in shared memory, and share DMA I/O buffers as already provided by Linux. 
 For example, when an ethernet device receives a packet 

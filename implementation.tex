@@ -10,13 +10,14 @@ transmit multiplexer when required, and finally, a new ARP component to handle b
 We configure all queues between these components to further implement different
 policies in \autoref{ch:evaluation}.
 
-
 \section{Transmit Multiplexer Policies}
 
 We implement 3 different transmit multiplexers, each implementing a different policy. 
 We present our pseudo code designs for how each multiplexer process transmit packets from
 the client. All multiplexers return free buffers from the driver to their respective 
 clients in the same FIFO order and hence this function has been omitted for brevity. 
+Notably, the implementations are very simple, aiding any debugging effort required, but also
+easing future formal verification endeavours.
 
 \subsection{Round-robin Policy}
 We implement a round-robin policy by processing a single client's transmit request at a time.
@@ -157,7 +158,6 @@ have been left for use-case specific implementations. \\
 This bandwidth-limited policy can also be combined with the round-robin or priority based policy
 to order each clients requests. Such a case would be useful in reducing the 
 transmit latencies of latency sensitive applications.\\ 
-
 
 \section{ARP Component}
 

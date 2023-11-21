@@ -10,7 +10,7 @@ This introduces the seL4 Device Driver Framework as an excellent starting point 
 
 \begin{figure}[h]
     \centering
-    \includegraphics[width=12cm]{sddf.pdf}
+    \includegraphics[width=9cm]{sddf.pdf}
     \caption{The seL4 Device Driver Framework (sDDF) \cite{Parker_22:sddf}}
     \label{f:sddf}
 \end{figure}
@@ -21,7 +21,7 @@ drivers on seL4 \cite{Parker_22:sddf}. It currently supports a statically define
 developed on top of the seL4 microkit. The sDDF prioritises a strong separation of 
 concerns by componentising each task in an I/O framework such that each component has only a 
 single job. This keeps each component inherently very simple, not only minimising any debugging effort required by 
-developers but also makes these components ammenable to verification. The sDDF design is based on
+developers but also makes these components accessible to verification. The sDDF design is based on
 top of a simple transport layer that provides protocols for communication between drivers and other
 components in the system.
 
@@ -71,6 +71,7 @@ communicating PDs in the sDDF have their own shared control region but share the
 The sDDF uses two queues per direction, per control region. For example, as per \autoref{f:control}, the 
 Transmit Used (TxU) queue stores buffer addresses which contain data ready for transmit. 
 The Transmit Free (TxF) queue stores buffer addresses available for reuse. This is duplicated for the receive path.
+The queues enable data to be passed between components in batches, thus minimising the number of system calls requried. 
 
 \begin{figure}[h]
     \centering
@@ -107,7 +108,6 @@ as shown in \autoref{l:queues2} to ensure that no reads or writes are re-ordered
 processor across this point. As the code ensures there is at least one unused buffer between the head and tail,
 the data race is benign and the memory barrier is sufficient to ensure consistency.
 
-
 \begin{figure} [H]
 \begin{minted}[]{c}
 bool full(struct ring_buffer *ring)
@@ -142,8 +142,6 @@ struct buffer_descr *dequeue(struct ring_buffer *ring)
 \caption{Ring Buffer Queue Management}
 \label{l:queues2}
 \end{figure}
-
-The queues enable data to be passed between components in batches, thus minimising the number of system calls requried. 
 
 \section{Device Sharing}\label{s:mux_design}
 In order to share a device with potentially multiple client applications, the sDDF proposes a simple PD whose 
@@ -211,14 +209,15 @@ Finally, all previous evaluations were limited to running on a single core only 
 
 \section{Thesis Problem Statement}
 This thesis addresses challenges in developing and evaluating a networking system based on 
-the seL4 microkernel and the introduced seL4 Device Driver Framework (sDDF). The overarching 
+the seL4 microkernel and the seL4 Device Driver Framework (sDDF). The overarching 
 problem statement encompasses multiple key objectives. Firstly, the aim is to extend and evaluate 
 the sDDF framework to provide flexible and secure support for multiple client applications, 
 addressing diverse networking demands. Secondly, this thesis focuses on assessing the scalability 
 of the framework to multi-core systems, investigating its efficiency across multiple cores to 
 optimize performance in a multi-core environment. Additionally, this thesis aims to evaluate the 
 framework's resilience against untrusted client applications, examining potential security vulnerabilities 
-and proposing a simple solution to protect the subsystem in a given threat scenario from misbehaving clients. 
+and proposing a simple solution to protect the subsystem in a given threat scenario from misbehaving clients. \\
+
 These objectives collectively contribute to advancing microkernel-based networking systems, offering
 a foundation for flexible, scalable, and secure support for multiple client applications while addressing
 security concerns associated with untrusted clients. 

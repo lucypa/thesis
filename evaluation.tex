@@ -18,11 +18,19 @@ and the system comprises of the following PDs:
     \item (only as specified) Tx Copy Component
 \end{enumerate}
 
+\autoref{f:sel4setup} shows our evaluation set up for a single client application.
 For all echo applications, we use ipbench as a distributed load generator 
-to send 1472 byte-sized UDP packets to test the seL4 based system. ipbench runs on a 4-node x86 cluster, 
+to send 1472 byte-sized UDP packets to test the seL4-based system. ipbench runs on a 4-node x86 cluster, 
 connected to the same switch as our test system,
 and counts the number of successful replies from the target system to measure the achieved throughput and latencies.
 All benchmarks use a sample size of 200,000 packets unless otherwise specified. 
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.8\textwidth]{sel4setup.pdf}
+    \caption{seL4 evaluation setup}
+    \label{f:sel4setup}
+\end{figure}
 
 For some benchmarks, we purposely overload our echo applications. A typical networking system would
 perform some computation on incoming data, such as a HTTP web server, which would need to fetch web pages from
@@ -31,9 +39,16 @@ we still want to test our framework under high loads where the CPU cannot keep u
 of a performance collapse, as well as ensuring that the system abides by any policy implemented in a multi-client set up. 
 We alter our echo application to perform 10 additional data copies and checksum calculations where specified.
 
-We also compare some echo server configurations against a Linux system (version 6.1.1) on the same hardware. 
-We use a simple user-level application which reads and then writes all packets immediately back using the socket API. 
-In order to determine the CPU utilisation of both systems, we run an idle thread on each core
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.6\textwidth]{linuxsetup.pdf}
+    \caption{Linux evaluation setup}
+    \label{f:linuxsetup}
+\end{figure}
+
+We also compare some echo server configurations against a Linux system (version 6.1.1) on the same hardware. \autoref{f:linuxsetup}
+shows our evaluation setup. We use a simple user-level application which reads and then writes all packets immediately 
+back using the socket API. In order to determine the CPU utilisation of both systems, we run an idle thread on each core
 at low-priority to count the number of idle cycles of that core. 
 
 For all asymmetric client applications, we implement our own custom benchmarking applications to run on an Intel Xeon W-1250
@@ -65,21 +80,23 @@ for simple echo servers.
         \label{f:perf_latencies}
     \end{subfigure}
 \end{multicols}
+\caption{Networking performance }
+\label{f:AgtB_RxU32}
 \end{figure}
 
 \autoref{f:perf} compares the performance (achieved throughput and CPU utilisation over applied load) of both systems. 
-We can see that the seL4 based system's throughput scales with applied load and manages to saturate the wire, while
+We can see that the seL4-based system's throughput scales with applied load and manages to saturate the wire, while
 Linux scales linearly to about 650 Mb/s and then plateaus. When comparing the CPU utilisation of both systems, we
 can see that the reason behind this plateau in throughput is because Linux uses significantly more CPU cycles 
-to handle a given load than the seL4 based system. Furthermore, the CPU utilisation of our system also scales 
+to handle a given load than the seL4-based system. Furthermore, the CPU utilisation of our system also scales 
 sub-linearly with increasing load which indicates efficient batching. The batching is a result of the sDDF's asynchronous 
 transport layer, which enables data to be passed around in batches and thus minimises the number of system calls requried per packet.
 
 \autoref{f:perf_latencies} compares the round trip time (RTT) latency with standard deviations over applied load of both systems. The latency measured
 is the median result taken from a sample size of 200,000 packets. We can see that the sDDF demonstrates a much faster round trip time over Linux.\\
 
-Despite the high count of system calls required in our design, this evaluation demonstrates the minimal impact this count has on overall performance. 
-The seL4 based system requires roughly 15K cycles per packet, whereas the Linux based system requires 43K cycles per packet. An asynchronous signal on seL4
+Despite the high number of system calls required in our design, this evaluation demonstrates the minimal impact this count has on overall performance. 
+The seL4-based system requires roughly 15K cycles per packet, whereas the Linux based system requires 43K cycles per packet. An asynchronous signal on seL4
 is less than 1000 cycles \cite{seL4bench_23}, thus an additional system call per packet would only add an overhead of roughly 6\%. Compared with the cost
 of packet processing, this is insignificant, whereas a system call in a monolithic kernel can be of the order of 10s of thousands of cycles. 
 
@@ -106,7 +123,7 @@ is available to process any incoming traffic in the interim.
 \subsection{Receive-dominant application}
 We also implement a simple receive dominant client application that for every 10,000 UDP packets received, it transmits a single one.
 This application is much simpler to implement as all memory management is already dealt with so we just adapt the echo server to 
-only echo every 10,000th packet.\\
+only echo every 10,000th packet.
 
 \subsection{Client Initiated Transmit}
 Not all networking devices act as servers that only react to incoming traffic. A common use case of a non-reactive application is a 
@@ -121,7 +138,6 @@ transmitted throughput by a transmit-dominant application (Tx Mostly) and the tr
 of a client-initiated transmit application (Tx Initiated) and compare these tests against the achieved
 throughput of the echo server. 
 
-\vspace{0.5cm}
 \begin{figure}[h]
     \centering
     \includegraphics[width=0.6\textwidth]{asym.eps}
@@ -136,9 +152,11 @@ more than 10,000 packets for every packet in the other direction, thus skewing t
 this would defeat the purpose of these examples
 as we are only wanting to test asymmetric traffic as opposed to uni-directional.
 From both of these results, we can conclude our system is able to cope well with asymmetric UDP traffic. 
-In our client-initiated benchmark, we are able to achieve near wire speed with less than 40\% CPU. This is inline
-with our expectations compared to our echo benchmarks, given this system has half the workload with no incoming
-packets. Although these tests are fairly simple, they provide a good sanity check to confirm our system can 
+In our client-initiated benchmark, we are able to achieve 885Mbps with less than 40\% CPU. When considering
+the cycle count cost per packet, this is inline with our expectations. To achieve wire speed, the echo benchmarks 
+require roughly 8.7K cycles per packet, or can be considered roughly 4.3K cycles per packet per direction. Our client-initiated
+transmit benchmarks require roughly 3.9K cycles per packet, or, 90\% of the cycle count to achieve 92\% of the throughput.
+Although these tests are fairly simple, they provide a good sanity check to confirm our system can 
 keep up with different workloads and present a good starting point for developing more complex workloads in the future.
 
 \section{Single-core, Multi-client systems}
@@ -309,7 +327,7 @@ being discarded as the client's RxU queue is full.
 This occurs in echo applications due to a shortage of transmit buffers stalling a client's ability to process packets. The
 result is that some excess work is done on packets that get discarded, leading to a higher average cycle cost per packet. 
 Ultimately, despite this overhead, we see that limiting a client's transmit queues can effectively limit the available transmit
-throughput to that client, and with a queue size of 128, a client is able to achieve wire speed.\\
+throughput to that client, and with a queue size of 128, a client is able to achieve wire speed.
 
 \subsection{Bandwidth-limited Tx Multiplexer}
 
@@ -340,10 +358,12 @@ of one another, thus requiring further policy in the multiplexer.
 Scaling to multi-core will incur overhead from two separate causes. Firstly, seL4 configured with symmetric multi-processing (SMP) increases
 the cost of every kernel invocation. This is not only due to the cost of acquiring the kernel lock, but also because the SMP kernel is
 less optimised and some fast paths do not apply. Secondly, inter-core communication costs significantly more than intra-core due to the addition of 
-inter-processor interrupts (IPI) for inter-core signalling and cache-line bouncing from any shared data. While detailed analysis of
-these overheads is left for future work, in order to properly
+inter-processor interrupts (IPI) for inter-core signalling and cache-line bouncing from any shared data. \\
+
+While detailed analysis of these overheads is left for future work, in order to properly
 analyse how our system performs on multi-core configurations, we first establish a baseline of these costs. We first evaluate two separate configurations
-using the SMP kernel: pinning every component to a single-core and splitting the load across two cores (out of an available 4). 
+using the SMP kernel: pinning every component to a single-core and splitting the load across two cores (out of an available 4). \\
+
 We compare these to our baseline without the SMP kernel. Each system is comprised of 5 PDs: an Ethernet driver, RX Mux, 
 TX Mux, Copy Component, Client running a simple echo server. Our two core system pins the driver and Tx Mux to one core, and 
 the Rx Mux, Copier and Client pinned to the other. We also compare these systems against a typical Linux set up, whereby
@@ -474,7 +494,7 @@ client A over client B.\\
 Furthermore, both our round-robin multiplexer and our priority-based multiplexer introduce similar overheads as indicated by their 
 respective CPU utilisation measurements. We conclude from these experiments that our round-robin and priority-based multiplexers work
 effectively, with each experiment displaying expected consequences of the policy enforced by the multiplexer, but more work is needed in
-investigating the SMP kernel to develop more efficient multi-core systems.\\
+investigating the SMP kernel to develop more efficient multi-core systems.
 
 \subsection{Two-threaded Driver}
 For some multi-core systems, the driver could be a performance bottleneck if the core it is running on is saturated. We can offload
@@ -618,6 +638,7 @@ Overall, our single client echo benchmarks outperform Linux significantly, both 
 This demonstrates a highly componentised, microkernel-based architecture is a feasible design despite the extra number
 of context switches required. Our exploration into asymmetric traffic demonstrates our framework 
 can handle such loads efficiently.\\
+
 Our multi-client results indicate the framework design, along with our new multiplexer 
 designs can flexibly implement a variety of different policies that may be required depending on system use-case.
 However, not all combinations make sense and system design heavily influences inner policies. 

@@ -1,12 +1,13 @@
-\chapter{Conclusion}\label{ch:conclusion}
+\chapter{Conclusions}\label{ch:conclusion}
 
 Traditional networking systems often grapple with significant challenges related to security, performance, or a 
 combination of both. This thesis conducted an evaluation of the seL4 Device Driver Framework for networking systems,
 expanding its functionality to flexibly support multiple client applications on multi-core systems. The highly
 modularized design of the sDDF not only surpasses the performance of traditional monolithic setups in Linux,
 despite the number of context switches required, but also provides strong fault containment for historically
-bug-prone code. This is furthered by the intentional simplicity of each component, minimizing the debugging effort
-required by developers and opening the potential for formal verification. \\
+bug-prone code. This is furthered by the intentional simplicity of each component, which drastically minimised 
+the debugging effort required for this thesis and will ease any future work beyond the scope of this project. This simplicity
+also enables future formal verification, which will only strengthen the security of seL4-based networking systems. \\
 
 This thesis delved into the ways in
 which system designers can impose diverse policies through varied, plug-compatible multiplexer implementations,

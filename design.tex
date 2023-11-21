@@ -20,6 +20,7 @@ to interfere with one another, nor any of the trusted shared components such as 
 as well as with other existing I/O frameworks (see \autoref{ch:related_work}).
 \end{itemize}
 
+\newpage
 To accomplish our goal, we need to:
 \begin{enumerate}
     \item Implement policies for the multiplexers, \autoref{s:mux_pol}
@@ -243,7 +244,7 @@ to achieve this. As the transport layer is lock-free and system calls are kept t
 Furthermore, it is possible to split the driver into two separate components. One component would be responsible for
 handling client initiated events (predominantly transmit requests), while the other component would react to 
 hardware events. This separation has the potential to achieve more performance on a multicore system as
-each of these components could run concurrently on separate cores.\\
+each of these components could run concurrently on separate cores.
 
 \subsection{Two-threaded driver on multi-core systems}
 A device driver has multiple tasks: it must react to hardware events as signalled by an interrupt and it must react to software events,
